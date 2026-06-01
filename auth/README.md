@@ -1,25 +1,61 @@
 # Auth
 
-Shared SQLite token verification and token/key management.
+`auth` is the shared permission project. Deploy it before `cinema` and `livestream`.
 
-## Configure
+It provides:
 
-See `.env.example`.
+- SQLite watch token storage in `data/tokens.db`
+- admin/publish key files in `keys`
+- `auth_lib` Python functions imported by other projects
+- `manage_token.sh` for token and key management
 
-Important variables:
+## How Other Projects Use It
 
-- `AUTH_BASE`: auth project directory.
-- `AUTH_TOKENS_DB`: SQLite token DB path.
-- `AUTH_KEYS_DIR`: admin key directory.
-- `AUTH_VALID_ROOMS`: comma-separated rooms, default `live,test,chutianshu,cinema`.
+`cinema` and `livestream` import `auth/auth_lib` through the `AUTH_BASE` environment variable.
+
+Default production layout:
+
+```text
+/opt/auth
+/opt/cinema
+/opt/livestream
+```
+
+With that layout, `AUTH_BASE=/opt/auth`.
 
 ## Linux Deploy
 
 ```bash
 bash deploy-linux.sh
-AUTH_BASE=/opt/auth ./manage_token.sh rotate-admin cinema
-AUTH_BASE=/opt/auth ./manage_token.sh add-watch cinema full
 ```
+
+The script:
+
+- installs `python3`, `sqlite3`, `openssl`, and `rsync`
+- copies source files to `/opt/auth` by default
+- preserves runtime `data` and `keys`
+- initializes `data/tokens.db`
+- creates empty admin key files
+
+## Manage Tokens
+
+```bash
+cd /opt/auth
+
+AUTH_BASE=/opt/auth ./manage_token.sh rotate-admin cinema
+AUTH_BASE=/opt/auth ./manage_token.sh rotate-admin live
+AUTH_BASE=/opt/auth ./manage_token.sh rotate-admin test
+
+AUTH_BASE=/opt/auth ./manage_token.sh add-watch cinema full
+AUTH_BASE=/opt/auth ./manage_token.sh add-watch live full
+AUTH_BASE=/opt/auth ./manage_token.sh list
+```
+
+Token types:
+
+- `full`: normal viewing
+- `group`: grouped viewing behavior, if the frontend uses it
+- `stealth`: hidden/quiet viewing behavior, if the frontend uses it
 
 ## Windows Local Init
 
