@@ -1,0 +1,122 @@
+/* ===================================
+   裁剪对话框样式
+   =================================== */
+
+.cropper-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: cropper-fadein 0.15s ease;
+}
+
+@keyframes cropper-fadein {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.cropper-dialog {
+    background: var(--bg-secondary, #1a1a1f);
+    border: 1px solid var(--border, #333);
+    border-radius: 12px;
+    min-width: 680px;
+    max-width: 90vw;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.cropper-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border, #333);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.cropper-header h3 {
+    margin: 0;
+    font-size: 16px;
+    color: var(--text-primary, #fff);
+}
+
+.cropper-close {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary, #aaa);
+    font-size: 20px;
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cropper-close:hover {
+    background: var(--bg-tertiary, #2a2a30);
+    color: var(--text-primary, #fff);
+}
+
+.cropper-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.cropper-canvas-wrap {
+    border: 1px solid var(--border, #333);
+    border-radius: 4px;
+    overflow: hidden;
+    background: #000;
+}
+
+.cropper-canvas {
+    display: block;
+    user-select: none;
+    touch-action: none;
+}
+
+.cropper-hint {
+    font-size: 12px;
+    color: var(--text-muted, #888);
+}
+
+.cropper-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border, #333);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.cropper-btn {
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid var(--border, #333);
+    background: var(--bg-tertiary, #2a2a30);
+    color: var(--text-primary, #fff);
+    transition: background 0.15s;
+}
+
+.cropper-btn:hover {
+    background: var(--border, #333);
+}
+
+.cropper-btn.primary {
+    background: var(--accent, #7c5cff);
+    border-color: var(--accent, #7c5cff);
+}
+
+.cropper-btn.primary:hover {
+    background: var(--accent-hover, #9277ff);
+}

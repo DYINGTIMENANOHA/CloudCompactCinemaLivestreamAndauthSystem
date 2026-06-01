@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>直播监控面板</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Microsoft YaHei',Arial,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
+        .container{max-width:1400px;margin:0 auto}
+        .header{background:rgba(255,255,255,0.95);padding:30px;border-radius:15px;margin-bottom:20px;box-shadow:0 10px 30px rgba(0,0,0,0.2);text-align:center}
+        .header h1{color:#667eea;font-size:2em;margin-bottom:10px}
+        .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-bottom:20px}
+        .card{background:rgba(255,255,255,0.95);border-radius:15px;padding:25px;box-shadow:0 10px 30px rgba(0,0,0,0.2)}
+        .card-title{color:#667eea;font-size:1.3em;margin-bottom:15px;padding-bottom:10px;border-bottom:2px solid #667eea;display:flex;align-items:center;gap:10px}
+        .status-dot{width:12px;height:12px;border-radius:50%;background:#4CAF50;display:inline-block}
+        .status-offline{background:#F44336}
+        .stat-item{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #eee}
+        .stat-label{color:#666;font-size:0.95em}
+        .stat-value{color:#333;font-weight:bold;font-size:1.1em}
+        .stat-value.good{color:#4CAF50}
+        .stat-value.warning{color:#FF9800}
+        .stat-value.error{color:#F44336}
+        .live-badge{background:#4CAF50;color:#fff;padding:4px 12px;border-radius:20px;font-size:0.85em;font-weight:bold}
+        .offline-badge{background:#888;color:#fff;padding:4px 12px;border-radius:20px;font-size:0.85em}
+        .btn{border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-size:1em;font-weight:bold;transition:all 0.3s}
+        .btn-primary{background:#667eea;color:#fff}
+        .btn-primary:hover{background:#764ba2}
+        .btn-success{background:#4CAF50;color:#fff}
+        .btn-success:disabled{background:#ccc;cursor:not-allowed}
+        .diagnose-section{margin-top:20px;padding-top:20px;border-top:2px solid #eee}
+        .diagnose-result{background:#f8f9fa;padding:20px;border-radius:10px;margin-top:15px}
+        .diagnose-result.good{background:#d4edda;border-left:4px solid #28a745}
+        .diagnose-result.warning{background:#fff3cd;border-left:4px solid #ffc107}
+        .diagnose-result.error{background:#f8d7da;border-left:4px solid #dc3545}
+        .test-item{padding:10px 0;border-bottom:1px solid #ddd}
+        .test-item:last-child{border-bottom:none}
+        .recommendation{background:#fff;padding:12px;margin:8px 0;border-radius:8px;border-left:4px solid #667eea}
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📊 直播监控面板</h1>
+        <p style="color:#666;margin-top:10px">实时监测直播流质量与性能</p>
+    </div>
+    
+    <div class="grid">
+        <div class="card">
+            <div class="card-title">
+                <span class="status-dot" id="live-dot"></span>
+                🎬 生产环境 (live)
+                <span id="live-badge" class="offline-badge">离线</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">接收码率</span>
+                <span class="stat-value" id="live-recv">-- kbps</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">发送码率</span>
+                <span class="stat-value" id="live-send">-- kbps</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">观众数</span>
+                <span class="stat-value" id="live-clients">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">分辨率</span>
+                <span class="stat-value" id="live-resolution">--</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">编码格式</span>
+                <span class="stat-value" id="live-codec">--</span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-title">
+                <span class="status-dot status-offline" id="test-dot"></span>
+                🧪 测试环境 (test)
+                <span id="test-badge" class="offline-badge">离线</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">接收码率</span>
+                <span class="stat-value" id="test-recv">-- kbps</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">发送码率</span>
+                <span class="stat-value" id="test-send">-- kbps</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">观众数</span>
+                <span class="stat-value" id="test-clients">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">分辨率</span>
+                <span class="stat-value" id="test-resolution">--</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">编码格式</span>
+                <span class="stat-value" id="test-codec">--</span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-title">💻 服务器资源</div>
+            <div class="stat-item">
+                <span class="stat-label">CPU使用率</span>
+                <span class="stat-value" id="cpu">--%</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">内存使用率</span>
+                <span class="stat-value" id="memory">--%</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">磁盘使用率</span>
+                <span class="stat-value" id="disk">--%</span>
+            </div>
+            <button class="btn btn-primary" onclick="loadStats()">🔄 立即刷新</button>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-title">🔬 智能诊断</div>
+        <p style="color:#666;margin-bottom:15px">分析卡顿根源，定位问题所在（主播端/服务器/观众端）</p>
+        <button class="btn btn-success" id="diagnoseBtn" onclick="runDiagnosis()">🚀 开始诊断</button>
+        <div id="diagnoseResult" style="display:none"></div>
+    </div>
+</div>
+
+<script>
+function loadStats() {
+    fetch('/api/monitor/stats')
+        .then(r => r.json())
+        .then(data => {
+            const live = data.streams.live;
+            if (live.live) {
+                document.getElementById('live-dot').className = 'status-dot';
+                document.getElementById('live-badge').className = 'live-badge';
+                document.getElementById('live-badge').textContent = '直播中';
+                document.getElementById('live-recv').textContent = live.recv_kbps + ' kbps';
+                document.getElementById('live-send').textContent = live.send_kbps + ' kbps';
+                document.getElementById('live-clients').textContent = live.clients || 0;
+                document.getElementById('live-resolution').textContent = live.width + 'x' + live.height;
+                document.getElementById('live-codec').textContent = live.codec;
+                
+                const recvEl = document.getElementById('live-recv');
+                if (live.recv_kbps >= 8000 && live.recv_kbps <= 12000) {
+                    recvEl.className = 'stat-value good';
+                } else if (live.recv_kbps > 0) {
+                    recvEl.className = 'stat-value warning';
+                }
+            } else {
+                document.getElementById('live-dot').className = 'status-dot status-offline';
+                document.getElementById('live-badge').className = 'offline-badge';
+                document.getElementById('live-badge').textContent = '离线';
+            }
+            
+            const test = data.streams.test;
+            if (test.live) {
+                document.getElementById('test-dot').className = 'status-dot';
+                document.getElementById('test-badge').className = 'live-badge';
+                document.getElementById('test-badge').textContent = '直播中';
+                document.getElementById('test-recv').textContent = test.recv_kbps + ' kbps';
+                document.getElementById('test-send').textContent = test.send_kbps + ' kbps';
+                document.getElementById('test-clients').textContent = test.clients || 0;
+                document.getElementById('test-resolution').textContent = test.width + 'x' + test.height;
+                document.getElementById('test-codec').textContent = test.codec;
+            } else {
+                document.getElementById('test-dot').className = 'status-dot status-offline';
+                document.getElementById('test-badge').className = 'offline-badge';
+                document.getElementById('test-badge').textContent = '离线';
+            }
+            
+            const sys = data.system;
+            if (sys.available) {
+                document.getElementById('cpu').textContent = sys.cpu_percent + '%';
+                document.getElementById('memory').textContent = sys.memory_percent + '%';
+                document.getElementById('disk').textContent = sys.disk_percent + '%';
+                
+                ['cpu', 'memory', 'disk'].forEach(id => {
+                    const el = document.getElementById(id);
+                    const val = parseFloat(el.textContent);
+                    if (val < 70) el.className = 'stat-value good';
+                    else if (val < 85) el.className = 'stat-value warning';
+                    else el.className = 'stat-value error';
+                });
+            }
+        })
+        .catch(e => console.error('获取监控数据失败:', e));
+}
+
+function runDiagnosis() {
+    const btn = document.getElementById('diagnoseBtn');
+    const resultDiv = document.getElementById('diagnoseResult');
+    
+    btn.disabled = true;
+    btn.textContent = '🔄 诊断中...';
+    resultDiv.style.display = 'none';
+    
+    fetch('/api/monitor/diagnose', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.textContent = '🚀 开始诊断';
+        
+        let html = '<div class="diagnose-section">';
+        html += `<div class="diagnose-result ${data.severity}">`;
+        html += `<h3 style="margin-bottom:15px">${data.conclusion}</h3>`;
+        
+        // 测试结果
+        if (data.tests) {
+            html += '<div style="margin:15px 0"><strong>检测项目：</strong></div>';
+            Object.values(data.tests).forEach(test => {
+                const icon = test.status === 'good' ? '✅' : test.status === 'warning' ? '⚠️' : '🔴';
+                html += `<div class="test-item">${icon} <strong>${test.name}:</strong> ${test.message}</div>`;
+            });
+        }
+        
+        // 建议
+        if (data.recommendations && data.recommendations.length > 0) {
+            html += '<div style="margin-top:20px"><strong>诊断建议：</strong></div>';
+            data.recommendations.forEach(rec => {
+                html += `<div class="recommendation">${rec}</div>`;
+            });
+        }
+        
+        html += '</div></div>';
+        
+        resultDiv.innerHTML = html;
+        resultDiv.style.display = 'block';
+    })
+    .catch(e => {
+        btn.disabled = false;
+        btn.textContent = '🚀 开始诊断';
+        alert('诊断失败: ' + e);
+    });
+}
+
+loadStats();
+setInterval(loadStats, 3000);
+</script>
+</body>
+</html>

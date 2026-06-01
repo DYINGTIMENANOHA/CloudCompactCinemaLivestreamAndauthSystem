@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}进入 - 云端放映室{% endblock %}
+{% block content %}
+<div class="centered-page">
+    <div class="card">
+        <h1>🎬 云端放映室</h1>
+        <p class="subtitle">请输入你今晚的昵称</p>
+        <form method="POST" action="/cinema/login" class="entry-form">
+            <input
+                type="text"
+                name="name"
+                placeholder="昵称"
+                maxlength="30"
+                required
+                autofocus
+                autocomplete="off"
+            >
+            <button type="submit">进入</button>
+        </form>
+        {% if error %}
+        <p class="error-text">{{ error }}</p>
+        {% endif %}
+        <p class="hint">关闭浏览器后需要重新输入</p>
+    </div>
+</div>
+{% endblock %}

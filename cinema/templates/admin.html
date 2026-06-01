@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}管理 - 云端放映室{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/cinema/static/css/admin.css">
+<link rel="stylesheet" href="/cinema/static/css/cropper.css">
+{% endblock %}
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <span class="brand">🎬 云端放映室</span>
+        <span class="user-name">管理员</span>
+    </div>
+    <div class="topbar-right">
+        <button id="refresh-all-btn" class="topbar-btn">🔄 刷新</button>
+    </div>
+</div>
+
+<main class="admin-main">
+
+    <!-- 空间使用 -->
+    <section class="admin-section">
+        <h2 class="section-title">存储空间</h2>
+        <div id="usage-display" class="usage-box">
+            <div class="usage-text">加载中...</div>
+            <div class="usage-bar"><div class="usage-bar-fill" id="usage-bar-fill"></div></div>
+            <div class="disk-info" id="disk-info"></div>
+        </div>
+        <div class="storage-limit-row">
+            <label>存储上限:</label>
+            <input type="number" id="storage-limit-input" min="1" step="1" value="9">
+            <span>GB</span>
+            <button id="storage-limit-save" type="button">保存</button>
+            <span class="storage-limit-hint" id="storage-limit-hint"></span>
+            <span class="storage-limit-status" id="storage-limit-status"></span>
+        </div>
+    </section>
+
+    <!-- 资源管理(封面 + 背景图) -->
+    <section class="admin-section">
+        <h2 class="section-title">资源管理</h2>
+        <div class="resource-box">
+            <div class="resource-row">
+                <div class="resource-label">默认视频封面</div>
+                <div class="resource-desc">视频没有专属封面时使用 · 16:9 · 1280×720 · ≤1MB</div>
+                <button id="default-cover-btn" class="cover-btn" type="button">上传默认封面</button>
+            </div>
+            <div class="resource-row">
+                <div class="resource-label">视频库背景</div>
+                <div class="resource-desc">库页面的背景图 · 自由比例 · 原图质量</div>
+                <button class="cover-btn bg-upload-btn" data-name="library" type="button">上传背景</button>
+            </div>
+            <div class="resource-row">
+                <div class="resource-label">放映室背景</div>
+                <div class="resource-desc">观看页面的背景图 · 自由比例 · 原图质量</div>
+                <button class="cover-btn bg-upload-btn" data-name="watch" type="button">上传背景</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- 上传 -->
+    <section class="admin-section">
+        <h2 class="section-title">上传视频</h2>
+        <div class="upload-box">
+            <input type="file" id="upload-input" accept="video/*" hidden>
+            <button id="upload-btn" class="primary-btn">选择视频文件</button>
+            <span class="upload-hint">支持 mp4 / mkv / webm / mov / avi 等,单文件 ≤ 5 GB · 分块上传,支持断点续传</span>
+        </div>
+        <div id="upload-progress-area"></div>
+    </section>
+
+    <!-- 上传任务 -->
+    <section class="admin-section">
+        <div class="section-title-row">
+            <h2 class="section-title">上传任务</h2>
+            <div class="section-actions">
+                <button id="tasks-refresh-btn" class="small-btn" title="刷新">🔄</button>
+                <button id="cancel-all-paused-btn" class="small-btn danger" title="取消所有暂停任务">取消所有暂停</button>
+            </div>
+        </div>
+        <div id="tasks-list">
+            <div class="empty">无任务</div>
+        </div>
+    </section>
+
+    <!-- 上传目录管理 -->
+    <section class="admin-section">
+        <div class="section-title-row">
+            <h2 class="section-title">上传目录</h2>
+            <button id="uploads-dir-refresh" class="small-btn" title="刷新">🔄</button>
+        </div>
+        <div id="uploads-dir-info" class="uploads-dir-box">
+            <span class="uploads-dir-text">加载中...</span>
+            <button id="uploads-dir-clean" class="small-btn danger" style="display:none;">清理孤儿文件</button>
+        </div>
+    </section>
+
+    <!-- 视频库 -->
+    <section class="admin-section">
+        <h2 class="section-title">视频库</h2>
+        <div id="videos-list">
+            <div class="empty">视频库还是空的</div>
+        </div>
+    </section>
+
+    <!-- 否决配置 -->
+    <section class="admin-section">
+        <h2 class="section-title">同步操作配置</h2>
+        <form id="config-form" class="config-form">
+            <label class="config-row">
+                <input type="checkbox" id="veto-enabled">
+                <span>启用否决机制</span>
+            </label>
+            <label class="config-row">
+                <span>否决延迟秒数:</span>
+                <input type="number" id="veto-delay" min="0" max="60" step="1">
+                <span class="hint">(0~60,设为 0 等同于实时同步)</span>
+            </label>
+            <button type="submit" class="primary-btn">保存配置</button>
+            <span id="config-status" class="config-status"></span>
+        </form>
+    </section>
+
+</main>
+{% endblock %}
+{% block extra_js %}
+<script src="/cinema/static/js/cover-crop.js"></script>
+<script src="/cinema/static/js/admin.js"></script>
+<script src="/cinema/static/js/admin-covers.js"></script>
+{% endblock %}

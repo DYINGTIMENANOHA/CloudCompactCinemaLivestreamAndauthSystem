@@ -1,0 +1,171 @@
+/* ===================================
+   云端放映室 - 全站通用样式
+   =================================== */
+
+:root {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2a2a2a;
+    --bg-tertiary: #333;
+    --text-primary: #eee;
+    --text-secondary: #aaa;
+    --text-muted: #666;
+    --accent: #7c5cff;
+    --accent-hover: #9075ff;
+    --border: #3a3a3a;
+    --error: #ff5a5a;
+    --success: #5aff8a;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+}
+
+/* === 居中布局(用于入口、错误页) === */
+.centered-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.card {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 40px;
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+
+.card h1 {
+    margin: 0 0 20px 0;
+    font-size: 28px;
+    font-weight: 600;
+}
+
+.card .subtitle {
+    margin: 0 0 24px 0;
+    color: var(--text-secondary);
+    font-size: 15px;
+}
+
+.card .message {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+}
+
+.card .hint {
+    margin-top: 20px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.card .error-text {
+    color: var(--error);
+    margin-top: 12px;
+    font-size: 13px;
+}
+
+/* === 表单 === */
+.entry-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.entry-form input[type="text"] {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 15px;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.entry-form input[type="text"]:focus {
+    border-color: var(--accent);
+}
+
+.entry-form button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.entry-form button:hover {
+    background: var(--accent-hover);
+}
+
+/* === 顶部栏(用于 library, watch, admin) === */
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.topbar .brand {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.topbar .user-name {
+    color: var(--text-secondary);
+    font-size: 13px;
+    padding: 4px 10px;
+    background: var(--bg-tertiary);
+    border-radius: 12px;
+}
+
+.topbar-right {
+    display: flex;
+    gap: 8px;
+}
+
+.topbar-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.topbar-btn:hover {
+    background: var(--border);
+}

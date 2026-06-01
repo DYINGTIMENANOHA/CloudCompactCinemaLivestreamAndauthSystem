@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    
+    <!-- 外部依赖 -->
+    <script src="https://cdn.jsdelivr.net/npm/flv.js@1.6.2/dist/flv.min.js"></script>
+    
+    <!-- 样式 -->
+    <link rel="stylesheet" href="/static/css/watch.css">
+</head>
+<body>
+<div class="overlay">
+<div class="container">
+    <!-- 头部 -->
+    <div class="header">
+        <h1>{{ title }}</h1>
+        <div class="header-buttons">
+            {% if show_replay_button and not replay_mode %}
+            <button class="replay-btn" onclick="showReplayModal()">📺 观看往期回放</button>
+            {% endif %}
+            <button class="replay-btn" onclick="window.location.href='/speed-test?token={{ token }}'">🚀 网速测试</button>
+            <button class="replay-btn" onclick="window.open('/monitor?token={{ token }}', '_blank')">📊 监控面板</button>
+        </div>
+    </div>
+    
+    <!-- 主内容 -->
+    <div class="main-content">
+        <!-- 视频区域 -->
+        <div class="video-section">
+            <div class="video-container">
+                <video id="videoElement" controls playsinline webkit-playsinline></video>
+                <div id="offline-msg" class="offline-message hidden">
+                    <h2>🔴 直播未开始</h2>
+                    <p>主播还没有开始直播，请稍后再来</p>
+                </div>
+            </div>
+            
+            <!-- 状态栏 -->
+            <div class="status-bar">
+                <div id="status-indicator" class="status-indicator status-offline">
+                    <div class="status-dot"></div>
+                    <span id="status-text">检测中...</span>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                    <div id="viewer-count" style="color:#888">观众: -</div>
+                    
+                    <!-- 🆕 清晰度选择器 -->
+                    {% if not replay_mode %}
+                    <div class="quality-selector">
+                        <button class="quality-btn" id="qualityBtn" onclick="toggleQualityDropdown()">
+                            <span id="currentQuality">原画</span>
+                            <span>▼</span>
+                        </button>
+                        <div class="quality-dropdown" id="qualityDropdown">
+                            <div class="quality-option active" data-quality="original" onclick="selectQuality('original')">
+                                原画 <span class="quality-badge original">高清</span>
+                            </div>
+                            <div class="quality-option" data-quality="smooth" onclick="selectQuality('smooth')">
+                                流畅 <span class="quality-badge smooth">省流</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <button id="autoplayToggle" onclick="toggleAutoplay()" style="background:#4CAF50;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.85em">🎬 自动播放: 开</button>
+                    <button id="toggleDelayBtn" onclick="toggleDelayDisplay()" style="background:#667eea;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.85em">📊 显示延迟</button>
+                    <div id="delay-info" style="color:#FF9800;font-size:0.9em;font-weight:bold;display:none">延迟: <span id="delay-seconds">0</span>秒</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 评论区域 -->
+        <div class="comments-section">
+            <div class="comments-header">💬 实时评论</div>
+            <div class="comments-list" id="commentsList"></div>
+            <div class="comment-input-area">
+                <div id="replyIndicator" style="display:none;background:#667eea;color:#fff;padding:8px 12px;border-radius:8px;margin-bottom:8px;font-size:0.9em">
+                    正在回复: <span id="replyTarget"></span>
+                    <button onclick="cancelReply()" style="background:rgba(255,255,255,0.3);border:none;color:#fff;padding:4px 10px;border-radius:5px;margin-left:10px;cursor:pointer">取消</button>
+                </div>
+                <div style="display:flex;gap:10px">
+                    <textarea id="commentInput" class="comment-input" placeholder="说点什么..." rows="2"></textarea>
+                    <button class="send-btn" onclick="sendComment()">发送</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- 回放模态框 -->
+<div id="replayModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>📺 往期回放</h2>
+            <button class="close-btn" onclick="closeReplayModal()">&times;</button>
+        </div>
+        <div class="recording-list" id="recordingList"></div>
+    </div>
+</div>
+
+<!-- Flask模板变量 -->
+<script>
+const TOKEN = '{{ token }}';
+const API_PREFIX = '{{ api_prefix }}';
+const STREAM_URL = '{{ stream_url }}';
+const WATCH_URL = '{{ watch_url }}';
+const DOWNLOAD_URL = '{{ download_url }}';
+const APP_NAME = '{{ app_name }}';
+const HLS_URL = '{{ hls_url }}';
+const IS_REPLAY = {{ 'true' if replay_mode else 'false' }};
+const REPLAY_SESSION = '{{ replay_session }}';
+</script>
+
+<!-- 核心模块 -->
+<script src="/static/js/player.js"></script>
+<script src="/static/js/comments.js"></script>
+<script src="/static/js/replay.js"></script>
+
+<!-- 🆕 流畅模式模块 -->
+<script src="/static/js/speed-test.js"></script>
+<script src="/static/js/quality-switch.js"></script>
+
+<!-- 🆕 清晰度切换逻辑 -->
+<script>
+let qualityManager = null;
+function isAutoplayEnabled() {
+    const autoplay = localStorage.getItem('autoplay_enabled');
+    return autoplay === null || autoplay === 'true';
+}
+
+function refreshAutoplayButton() {
+    const button = document.getElementById('autoplayToggle');
+    if (!button) return;
+
+    const enabled = isAutoplayEnabled();
+    button.style.background = enabled ? '#4CAF50' : '#666';
+    button.textContent = enabled ? '🎬 自动播放: 开' : '⏸️ 自动播放: 关';
+}
+
+function toggleAutoplay() {
+    const enabled = isAutoplayEnabled();
+    const newEnabled = !enabled;
+
+    localStorage.setItem('autoplay_enabled', newEnabled.toString());
+    refreshAutoplayButton();
+}
+/**
+ * 切换清晰度下拉菜单
+ */
+function toggleQualityDropdown() {
+    const dropdown = document.getElementById('qualityDropdown');
+    dropdown.classList.toggle('show');
+}
+
+/**
+ * 选择清晰度
+ */
+async function selectQuality(quality) {
+    const dropdown = document.getElementById('qualityDropdown');
+    dropdown.classList.remove('show');
+    
+    if (quality === 'original') {
+        if (qualityManager) {
+            qualityManager.switchToOriginal();
+        }
+        updateQualityUI('original');
+    } else if (quality === 'smooth') {
+        if (qualityManager) {
+            const success = await qualityManager.switchToSmooth();
+            if (success) {
+                updateQualityUI('smooth');
+            }
+        }
+    }
+}
+
+/**
+ * 更新清晰度UI
+ */
+function updateQualityUI(quality) {
+    document.getElementById('currentQuality').textContent = quality === 'original' ? '原画' : '流畅';
+    
+    document.querySelectorAll('.quality-option').forEach(opt => {
+        opt.classList.remove('active');
+        if (opt.dataset.quality === quality) {
+            opt.classList.add('active');
+        }
+    });
+}
+
+/**
+ * 点击外部关闭下拉菜单
+ */
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.quality-selector')) {
+        const dropdown = document.getElementById('qualityDropdown');
+        if (dropdown) dropdown.classList.remove('show');
+    }
+});
+</script>
+
+<!-- 初始化 -->
+<script>
+let statusCheckInterval = null;
+let commentsCheckInterval = null;
+
+window.onload = function() {
+    refreshAutoplayButton();
+    // 初始化播放器
+    if (IS_REPLAY) {
+        startReplayStream(REPLAY_SESSION);
+    } else {
+        checkStreamStatus();
+        startLiveStream();
+        statusCheckInterval = setInterval(checkStreamStatus, 3000);
+        
+        // 🆕 初始化流畅模式管理器（仅直播模式）
+        const videoElement = document.getElementById('videoElement');
+        qualityManager = new QualityManager(videoElement, (status) => {
+            // 状态更新回调（可选）
+            console.log('流畅模式状态:', status);
+        });
+        qualityManager.init();
+    }
+    
+    // 初始化评论
+    initCommentInput();
+    loadComments(REPLAY_SESSION);
+    commentsCheckInterval = setInterval(() => loadComments(REPLAY_SESSION), 5000);
+    
+    // 初始化回放
+    initModalClickClose();
+    
+    // 启动延迟监控
+    startDelayMonitoring();
+};
+
+window.onbeforeunload = function() {
+    destroyPlayer();
+    if (statusCheckInterval) clearInterval(statusCheckInterval);
+    if (commentsCheckInterval) clearInterval(commentsCheckInterval);
+    if (qualityManager) qualityManager.destroy();
+};
+</script>
+</body>
+</html>

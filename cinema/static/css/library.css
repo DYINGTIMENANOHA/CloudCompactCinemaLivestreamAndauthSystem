@@ -1,0 +1,92 @@
+/* ===================================
+   视频列表页样式
+   =================================== */
+
+.library-main {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 32px 24px;
+    min-height: calc(100vh - 60px);
+}
+
+/* 背景图: 存在就显示,不存在 fallback 到 body 的纯色背景 */
+body.has-bg-library {
+    background-image: url('/cinema/static/img/bg_library.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 20px 0;
+    color: var(--text-primary);
+}
+
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+.video-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+}
+
+.video-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+}
+
+.video-card .thumbnail {
+    aspect-ratio: 16 / 9;
+    background-color: var(--bg-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    color: var(--text-muted);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+/* 有默认封面时隐藏 emoji 占位符 */
+.video-card .thumbnail.has-cover {
+    font-size: 0;
+    color: transparent;
+}
+
+.video-card .info {
+    padding: 12px 14px;
+}
+
+.video-card .title {
+    font-size: 14px;
+    font-weight: 500;
+    margin: 0 0 4px 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.video-card .duration {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.loading,
+.empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--text-muted);
+    padding: 60px 20px;
+    font-size: 14px;
+}

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}{{ video.display_name }} - 云端放映室{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/cinema/static/css/watch.css">
+<link rel="stylesheet" href="/cinema/static/css/sidebar.css">
+<link rel="stylesheet" href="/cinema/static/css/chat.css">
+{% endblock %}
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <a href="/cinema/library" class="back-link">← 返回库</a>
+        <span class="user-name">{{ name }}</span>
+    </div>
+    <div class="topbar-right">
+        <button id="switch-video-btn" class="topbar-btn" style="display:none;">🎞 切换视频</button>
+        <button id="rooms-btn" class="topbar-btn">👥 房间</button>
+        <button id="chat-btn" class="topbar-btn chat-btn">💬 聊天<span class="chat-badge" id="chat-badge"></span></button>
+    </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h3>👥 谁在看</h3>
+        <button class="sidebar-refresh" id="sidebar-refresh" title="刷新在线状态">🔄</button>
+        <button class="sidebar-close" id="sidebar-close">✕</button>
+    </div>
+    <div class="sidebar-body" id="sidebar-body">
+        <div class="sidebar-empty">连接中...</div>
+    </div>
+    <div class="sidebar-status" id="sidebar-status">
+        <span class="ws-dot connecting"></span>连接中...
+    </div>
+</div>
+
+<!-- 聊天侧边栏 -->
+<div class="chat-overlay" id="chat-overlay"></div>
+<div class="chat-sidebar" id="chat-sidebar">
+    <div class="chat-header">
+        <h3>💬 聊天室</h3>
+        <div class="chat-header-actions">
+            <button class="chat-close" id="chat-close">✕</button>
+        </div>
+    </div>
+    <div class="chat-status" id="chat-status">
+        <span id="chat-status-text">未加入聊天室</span>
+    </div>
+    <div id="chat-body">
+        <div class="chat-lobby">
+            <div class="chat-lobby-empty">连接中...</div>
+        </div>
+    </div>
+</div>
+
+<main class="watch-main">
+    <!-- mode-bar 在视频上方 -->
+    <div class="mode-bar mode-solo" id="mode-bar">
+        独立观看 · 《{{ video.display_name }}》
+    </div>
+
+    <div class="player-wrapper" id="player-wrapper">
+        <video id="player" preload="auto" tabindex="0" playsinline webkit-playsinline></video>
+
+        <div class="player-overlay" id="player-overlay">
+            <button class="play-overlay" id="play-overlay" type="button" title="点击播放">▶</button>
+        </div>
+
+        <!-- toast 和 pending banner -->
+        <div class="player-toast-container" id="toast-container"></div>
+        <div class="player-pending-banner" id="sync-pending-banner"></div>
+
+        <!-- 播放控件(在 wrapper 内,全屏时跟随) -->
+        <div class="player-controls" id="player-controls">
+            <div class="progress-row">
+                <input type="range" id="progress-slider" class="progress-slider"
+                    min="0" max="1000" value="0" step="1">
+                <div class="buffered-bar" id="buffered-bar"></div>
+            </div>
+            <div class="time-row">
+                <span id="current-time">0:00</span>
+                <span id="total-time">--:--</span>
+            </div>
+            <div class="control-row">
+                <button id="play-pause-btn" class="ctrl-btn" type="button">▶</button>
+                <span class="volume-group">
+                    <button id="mute-btn" class="ctrl-btn" type="button">🔊</button>
+                    <input type="range" id="volume-slider" class="volume-slider"
+                           min="0" max="100" value="100">
+                </span>
+                <div class="ctrl-spacer"></div>
+                <button id="subtitle-btn" class="ctrl-btn" type="button" title="字幕">CC</button>
+                <button id="fullscreen-btn" class="ctrl-btn" type="button">⛶</button>
+            </div>
+            <div class="download-status" id="download-status">正在初始化...</div>
+        </div>
+
+        <!-- 全屏时右上角房间按钮 -->
+        <div class="fs-room-btn" id="fs-room-btn" style="display:none;">
+            <span class="fs-room-label" id="fs-room-label">在房间中</span>
+            <div class="fs-room-panel" id="fs-room-panel" style="display:none;">
+                <button class="fs-panel-btn" id="fs-catchup-btn">🏃 追上房主</button>
+                <button class="fs-panel-btn" id="fs-exit-fs-btn">⛶ 退出全屏</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 视频选择面板(占屏幕大部分,ws.js 动态渲染) -->
+    <div class="video-picker-overlay" id="video-picker-overlay" style="display:none;">
+        <div class="video-picker-dialog">
+            <div class="video-picker-header">
+                <h3>选择要切换到的视频</h3>
+                <button class="video-picker-close" id="video-picker-close" type="button">✕</button>
+            </div>
+            <div class="video-picker-body" id="video-picker-body">
+                <div class="video-picker-loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<input type="file" id="subtitle-file-input" accept=".srt,.ass,.ssa,.vtt,.sub,.txt" style="display:none;">
+
+<script>
+window.CINEMA_VIDEO = {
+    id: {{ video.id | tojson }},
+    filename: {{ video.filename | tojson }},
+    display_name: {{ video.display_name | tojson }},
+    duration_seconds: {{ video.duration_seconds | tojson }},
+    size_bytes: {{ video.size_bytes | tojson }},
+    video_codec: {{ (video.video_codec or "") | tojson }},
+    audio_codec: {{ (video.audio_codec or "") | tojson }},
+};
+window.CINEMA_TOKEN = {{ watch_token | tojson }};
+window.CINEMA_NAME = {{ name | tojson }};
+</script>
+{% endblock %}
+{% block extra_js %}
+<script src="/cinema/static/js/watch.js"></script>
+<script src="/cinema/static/js/subtitle.js"></script>
+<script src="/cinema/static/js/ws.js"></script>
+<script src="/cinema/static/js/chat.js"></script>
+{% endblock %}

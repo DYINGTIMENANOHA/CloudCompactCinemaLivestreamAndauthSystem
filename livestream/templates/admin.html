@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台 - {{ room_type }}</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Microsoft YaHei',Arial,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
+        .container{max-width:1400px;margin:0 auto}
+        .header{background:rgba(255,255,255,0.95);padding:30px;border-radius:15px;margin-bottom:20px;box-shadow:0 10px 30px rgba(0,0,0,0.2);display:flex;justify-content:space-between;align-items:center}
+        .header-left h1{color:#667eea;font-size:2em;margin-bottom:10px}
+        .header-info{color:#666;font-size:0.9em}
+        .header-buttons{display:flex;gap:10px}
+        .header-btn{background:#667eea;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:0.95em;text-decoration:none;display:inline-block;transition:all 0.3s}
+        .header-btn:hover{background:#764ba2;transform:translateY(-2px)}
+        .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+        .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:20px}
+        @media (max-width:1024px){.grid-2,.grid-3{grid-template-columns:1fr}}
+        .panel{background:rgba(255,255,255,0.95);border-radius:15px;padding:25px;box-shadow:0 10px 30px rgba(0,0,0,0.2);margin-bottom:20px}
+        .panel-title{color:#667eea;font-size:1.5em;margin-bottom:20px;padding-bottom:15px;border-bottom:2px solid #667eea}
+        .form-group{margin-bottom:15px}
+        .form-label{display:block;margin-bottom:8px;color:#333;font-weight:bold;font-size:0.95em}
+        .form-input{width:100%;padding:12px;border:2px solid #ddd;border-radius:8px;font-size:1em;transition:all 0.3s}
+        .form-input:focus{outline:none;border-color:#667eea}
+        .form-textarea{width:100%;padding:12px;border:2px solid #ddd;border-radius:8px;font-size:1em;resize:vertical;min-height:100px;transition:all 0.3s}
+        .form-textarea:focus{outline:none;border-color:#667eea}
+        .checkbox-group{display:flex;align-items:center;gap:8px;margin-bottom:15px}
+        .checkbox-group input[type="checkbox"]{width:20px;height:20px;cursor:pointer}
+        .btn{padding:12px 30px;border:none;border-radius:8px;cursor:pointer;font-size:1em;font-weight:bold;transition:all 0.3s;margin-right:10px}
+        .btn-primary{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff}
+        .btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(102,126,234,0.5)}
+        .btn-success{background:#4CAF50;color:#fff}
+        .btn-success:hover{background:#45a049}
+        .btn-danger{background:#F44336;color:#fff}
+        .btn-danger:hover{background:#da190b}
+        .comments-list{max-height:400px;overflow-y:auto;margin-top:20px}
+        .comment-item{background:#f5f5f5;padding:15px;border-radius:10px;margin-bottom:10px;border-left:4px solid #667eea}
+        .comment-reply{margin-left:30px;margin-top:8px;border-left-color:#888}
+        .comment-pinned{border-left-color:#FFD700;background:#fffacd}
+        .comment-admin{border-left-color:#FF6B6B}
+        .comment-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+        .comment-badges{display:flex;gap:5px}
+        .badge{padding:3px 8px;border-radius:5px;font-size:0.85em;font-weight:bold}
+        .badge-admin{background:#FF6B6B;color:#fff}
+        .badge-pinned{background:#FFD700;color:#000}
+        .badge-reply{background:#888;color:#fff}
+        .comment-time{color:#888;font-size:0.9em}
+        .comment-content{color:#333;margin-bottom:10px}
+        .comment-actions{display:flex;gap:8px;flex-wrap:wrap}
+        .btn-small{padding:6px 12px;font-size:0.85em;border:none;border-radius:5px;cursor:pointer;transition:all 0.3s}
+        .btn-pin{background:#FFD700;color:#000}
+        .btn-unpin{background:#888;color:#fff}
+        .btn-reply{background:#667eea;color:#fff}
+        .btn-delete{background:#FF6B6B;color:#fff}
+        .btn-small:hover{transform:scale(1.05)}
+        .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+        .stat-box{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:20px;border-radius:10px;text-align:center}
+        .stat-value{font-size:2em;font-weight:bold;margin-bottom:5px}
+        .stat-label{font-size:0.9em;opacity:0.9}
+        .comments-list::-webkit-scrollbar{width:8px}
+        .comments-list::-webkit-scrollbar-track{background:#f1f1f1;border-radius:4px}
+        .comments-list::-webkit-scrollbar-thumb{background:#667eea;border-radius:4px}
+        .reply-indicator{background:#e3f2fd;padding:8px 12px;border-radius:8px;margin-bottom:10px;font-size:0.9em;color:#1976d2;display:none}
+        .reply-indicator button{background:none;border:none;color:#1976d2;cursor:pointer;font-weight:bold;margin-left:10px}
+        .info-box{background:#e8f5e9;padding:12px;border-radius:8px;margin-bottom:15px;border-left:4px solid #4CAF50;font-size:0.9em}
+        .warning-box{background:#fff3cd;padding:12px;border-radius:8px;margin-bottom:15px;border-left:4px solid #ffc107;font-size:0.9em}
+        .status-active{background:#d4edda;border-left-color:#28a745;color:#155724}
+        .status-idle{background:#f8f9fa;border-left-color:#6c757d;color:#383d41}
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="header-left">
+            <h1>🎮 管理后台</h1>
+            <div class="header-info">{{ room_type }} | 管理员控制面板</div>
+        </div>
+        <div class="header-buttons">
+            <a href="/monitor?token={{ token }}" target="_blank" class="header-btn">📊 监控面板</a>
+            <a href="/watch?token={{ token }}" target="_blank" class="header-btn">👁️ 观看直播</a>
+        </div>
+    </div>
+    
+    <div class="stats">
+        <div class="stat-box">
+            <div class="stat-value" id="total-comments">0</div>
+            <div class="stat-label">评论总数</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value" id="pinned-comments">0</div>
+            <div class="stat-label">置顶评论</div>
+        </div>
+    </div>
+    
+    <div class="grid-2">
+        <div class="panel">
+            <div class="panel-title">💬 发送评论</div>
+            <div class="reply-indicator" id="reply-indicator">
+                正在回复: <span id="reply-target"></span>
+                <button onclick="cancelReply()">取消</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">评论内容</label>
+                <textarea id="comment-input" class="form-textarea" placeholder="输入评论内容..."></textarea>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="pinned-checkbox">
+                <label for="pinned-checkbox">📌 置顶此评论</label>
+            </div>
+            <button class="btn btn-primary" onclick="sendComment()">✉️ 发送评论</button>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-title">📋 评论管理</div>
+            <button class="btn btn-primary" onclick="loadComments()" style="width:100%;margin-bottom:15px">🔄 刷新评论</button>
+            <div class="comments-list" id="comments-list"></div>
+        </div>
+    </div>
+
+    <!-- 流畅模式监控 -->
+    <div class="panel">
+        <div class="panel-title">📡 流畅模式状态监控</div>
+        <div id="smooth-status" class="info-box status-idle">
+            状态：正在加载...
+        </div>
+        <button class="btn btn-danger" id="stop-btn" onclick="stopSmoothMode()" style="display:none">🛑 停止流畅模式</button>
+        <button class="btn btn-primary" onclick="loadSmoothStatus()">🔄 刷新状态</button>
+        <button class="btn btn-danger" onclick="hardResetSmoothMode()" style="margin-left:10px">⚡ 硬重置</button>
+    </div>
+
+    <!-- 流畅模式设置 -->
+    <div class="panel">
+        <div class="panel-title">⚙️ 流畅模式配置</div>
+        <div class="info-box">
+            转码逻辑：观众网速 &lt; 原画码率时才允许切换流畅模式，转码码率 = min(观众网速 × 降码折扣, 转码上限)
+        </div>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">原画码率 (KB/s)</label>
+                <input type="number" id="original-bitrate" class="form-input" value="3000" min="1000" max="20000" step="100">
+                <small style="color:#666">观众网速必须 &lt; 此值才能切换</small>
+            </div>
+            <div class="form-group">
+                <label class="form-label">降码折扣 (0.1-1.0)</label>
+                <input type="number" id="reduction-factor" class="form-input" value="0.8" min="0.1" max="1.0" step="0.05">
+                <small style="color:#666">转码码率 = 网速 × 折扣</small>
+            </div>
+            <div class="form-group">
+                <label class="form-label">转码上限 (KB/s)</label>
+                <input type="number" id="max-transcode" class="form-input" value="3000" min="500" max="10000" step="100">
+                <small style="color:#666">转码码率不超过此值</small>
+            </div>
+        </div>
+        <button class="btn btn-success" onclick="saveQualityConfig()">💾 保存配置</button>
+        <div id="current-config" class="warning-box" style="margin-top:15px;display:none"></div>
+    </div>
+</div>
+
+<script>
+const TOKEN = '{{ token }}';
+const API_PREFIX = '{{ api_prefix }}';
+let autoRefreshInterval = null;
+let statusRefreshInterval = null;
+let replyingTo = null;
+
+function loadSmoothStatus() {
+    fetch('/api/quality/status?token=' + TOKEN)
+        .then(r => r.json())
+        .then(data => {
+            const statusBox = document.getElementById('smooth-status');
+            const stopBtn = document.getElementById('stop-btn');
+            
+            const status = data.status;
+            const viewers = data.viewers || {original: 0, smooth: 0};
+            const processAlive = data.process_alive;
+            const ffmpegPid = data.ffmpeg_pid;
+            
+            let statusText = '';
+            let statusClass = 'info-box status-idle';
+            
+            if (status === 'ready' || status === 'transcoding') {
+                const processStatus = processAlive ? '✅ 进程运行中' : '❌ 进程已退出';
+                statusClass = processAlive ? 'info-box status-active' : 'info-box warning-box';
+                statusText = `<strong>${processStatus}</strong><br>
+                    状态: ${status === 'ready' ? '转码就绪' : '转码中'}<br>
+                    转码码率: ${data.target_bitrate || 0} KB/s (${((data.target_bitrate || 0)/1000).toFixed(1)} MB/s)<br>
+                    FFmpeg PID: ${ffmpegPid || 'N/A'}<br>
+                    使用流畅模式: ${viewers.smooth} 人 | 使用原画: ${viewers.original} 人`;
+                stopBtn.style.display = 'inline-block';
+            } else if (status === 'testing') {
+                statusClass = 'info-box warning-box';
+                statusText = `<strong>🔄 测速中</strong><br>测速结果: ${data.test_speed ? data.test_speed.toFixed(1) + ' Mbps' : '等待中...'}<br>原画: ${viewers.original} 人 | 流畅: ${viewers.smooth} 人`;
+                stopBtn.style.display = 'none';
+            } else {
+                statusText = `<strong>⚪ 流畅模式未启用</strong><br>状态: 空闲 | 原画: ${viewers.original} 人 | 流畅: ${viewers.smooth} 人`;
+                stopBtn.style.display = 'none';
+            }
+            
+            statusBox.className = statusClass;
+            statusBox.innerHTML = statusText;
+        })
+        .catch(e => {
+            console.error('加载状态失败:', e);
+        });
+}
+
+function stopSmoothMode() {
+    if (!confirm('确定要停止流畅模式吗？这将强制杀死FFmpeg进程并重置系统。')) return;
+    
+    fetch('/api/quality/admin/reset', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({token: TOKEN})
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.status === 'ok') {
+            alert('✅ 流畅模式已停止');
+            loadSmoothStatus();
+        } else {
+            alert('停止失败: ' + (result.error || '未知错误'));
+        }
+    })
+    .catch(e => alert('网络错误: ' + e));
+}
+
+function hardResetSmoothMode() {
+    if (!confirm('硬重置将强制清除所有流畅模式状态（包括testing/transcoding死锁），确定继续？')) return;
+
+    fetch('/api/quality/admin/hard-reset', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({token: TOKEN})
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.status === 'ok') {
+            alert('✅ 硬重置完成');
+            loadSmoothStatus();
+        } else {
+            alert('重置失败: ' + (result.error || '未知错误'));
+        }
+    })
+    .catch(e => alert('网络错误: ' + e));
+}
+
+function loadQualityConfig() {
+    fetch('/api/quality/admin/config?token=' + TOKEN)
+        .then(r => r.json())
+        .then(config => {
+            if (config.error) return;
+            document.getElementById('original-bitrate').value = config.original_bitrate || 3000;
+            document.getElementById('reduction-factor').value = config.reduction_factor || 0.8;
+            document.getElementById('max-transcode').value = config.max_transcode_bitrate || 3000;
+            updateConfigDisplay(config);
+        })
+        .catch(e => console.error('加载配置失败:', e));
+}
+
+function saveQualityConfig() {
+    const originalBitrate = parseInt(document.getElementById('original-bitrate').value);
+    const reductionFactor = parseFloat(document.getElementById('reduction-factor').value);
+    const maxTranscode = parseInt(document.getElementById('max-transcode').value);
+    
+    fetch('/api/quality/admin/config', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            token: TOKEN,
+            original_bitrate: originalBitrate,
+            reduction_factor: reductionFactor,
+            max_transcode_bitrate: maxTranscode
+        })
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.status === 'ok') {
+            alert('✅ 配置已保存');
+            loadQualityConfig();
+        } else {
+            alert('保存失败: ' + (result.error || '未知错误'));
+        }
+    })
+    .catch(e => alert('网络错误: ' + e));
+}
+
+function updateConfigDisplay(config) {
+    const box = document.getElementById('current-config');
+    const orig = config.original_bitrate || 3000;
+    const factor = config.reduction_factor || 0.8;
+    const maxT = config.max_transcode_bitrate || 3000;
+    box.innerHTML = `
+        <strong>当前生效配置：</strong><br>
+        原画码率: ${orig} KB/s (${(orig/1000).toFixed(1)} MB/s) | 
+        降码折扣: ${(factor*100).toFixed(0)}% | 
+        转码上限: ${maxT} KB/s (${(maxT/1000).toFixed(1)} MB/s)
+    `;
+    box.style.display = 'block';
+}
+
+function loadComments() {
+    fetch(API_PREFIX + '/comments')
+        .then(r => r.json())
+        .then(comments => {
+            const list = document.getElementById('comments-list');
+            list.innerHTML = '';
+            
+            const mainComments = comments.filter(c => !c.parent_id);
+            const repliesMap = {};
+            
+            comments.filter(c => c.parent_id).forEach(reply => {
+                if (!repliesMap[reply.parent_id]) {
+                    repliesMap[reply.parent_id] = [];
+                }
+                repliesMap[reply.parent_id].push(reply);
+            });
+            
+            let totalCount = comments.length;
+            let pinnedCount = comments.filter(c => c.is_pinned).length;
+            
+            document.getElementById('total-comments').textContent = totalCount;
+            document.getElementById('pinned-comments').textContent = pinnedCount;
+            
+            if (mainComments.length === 0) {
+                list.innerHTML = '<p style="text-align:center;color:#888;padding:40px">暂无评论</p>';
+                return;
+            }
+            
+            mainComments.forEach(comment => {
+                const item = createCommentElement(comment, false);
+                list.appendChild(item);
+                
+                if (repliesMap[comment.id]) {
+                    repliesMap[comment.id].forEach(reply => {
+                        const replyItem = createCommentElement(reply, true);
+                        list.appendChild(replyItem);
+                    });
+                }
+            });
+        })
+        .catch(e => {
+            console.error('加载评论失败:', e);
+        });
+}
+
+function createCommentElement(comment, isReply) {
+    const item = document.createElement('div');
+    item.className = 'comment-item' + (isReply ? ' comment-reply' : '');
+    if (comment.is_pinned) item.classList.add('comment-pinned');
+    if (comment.is_admin) item.classList.add('comment-admin');
+    
+    let badges = '<div class="comment-badges">';
+    if (comment.is_admin) badges += '<span class="badge badge-admin">主播</span>';
+    if (comment.is_pinned) badges += '<span class="badge badge-pinned">📌</span>';
+    if (isReply) badges += '<span class="badge badge-reply">↳ 回复</span>';
+    badges += '</div>';
+    
+    const pinBtn = comment.is_pinned ?
+        `<button class="btn-small btn-unpin" onclick="unpinComment(${comment.id})">取消置顶</button>` :
+        `<button class="btn-small btn-pin" onclick="pinComment(${comment.id})">📌 置顶</button>`;
+    
+    const replyBtn = !isReply ? 
+        `<button class="btn-small btn-reply" onclick="replyToComment(${comment.id}, '${escapeHtml(comment.content).substring(0,30)}...')">💬 回复</button>` : '';
+    
+    item.innerHTML = `
+        <div class="comment-header">
+            ${badges}
+            <span class="comment-time">${formatTime(comment.time)}</span>
+        </div>
+        <div class="comment-content">${escapeHtml(comment.content)}</div>
+        <div class="comment-actions">
+            ${replyBtn}
+            ${pinBtn}
+            <button class="btn-small btn-delete" onclick="deleteComment(${comment.id})">🗑️ 删除</button>
+        </div>
+    `;
+    
+    return item;
+}
+
+function replyToComment(commentId, content) {
+    replyingTo = commentId;
+    document.getElementById('reply-indicator').style.display = 'block';
+    document.getElementById('reply-target').textContent = content;
+    document.getElementById('comment-input').focus();
+}
+
+function cancelReply() {
+    replyingTo = null;
+    document.getElementById('reply-indicator').style.display = 'none';
+}
+
+function sendComment() {
+    const input = document.getElementById('comment-input');
+    const content = input.value.trim();
+    const pinned = document.getElementById('pinned-checkbox').checked;
+    
+    if (!content) {
+        alert('请输入评论内容');
+        return;
+    }
+    
+    fetch(API_PREFIX + '/admin/comment', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            token: TOKEN,
+            content: content,
+            pinned: pinned,
+            parent_id: replyingTo
+        })
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.status === 'ok') {
+            input.value = '';
+            document.getElementById('pinned-checkbox').checked = false;
+            cancelReply();
+            loadComments();
+        } else {
+            alert('发送失败: ' + (result.error || '未知错误'));
+        }
+    })
+    .catch(e => {
+        console.error('发送失败:', e);
+        alert('网络错误');
+    });
+}
+
+function pinComment(id) {
+    fetch(API_PREFIX + '/admin/pin/' + id, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({token: TOKEN, pinned: true})
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.status === 'ok') loadComments();
+        else alert('置顶失败');
+    })
+    .catch(e => alert('操作失败'));
+}
+
+function unpinComment(id) {
+    fetch(API_PREFIX + '/admin/pin/' + id, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({token: TOKEN, pinned: false})
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.status === 'ok') loadComments();
+        else alert('取消置顶失败');
+    })
+    .catch(e => alert('操作失败'));
+}
+
+function deleteComment(id) {
+    if (!confirm('确定要删除这条评论吗？')) return;
+    
+    fetch(API_PREFIX + '/admin/delete/' + id, {
+        method: 'DELETE',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({token: TOKEN})
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.status === 'ok') loadComments();
+        else alert('删除失败');
+    })
+    .catch(e => alert('操作失败'));
+}
+
+function formatTime(timeStr) {
+    const date = new Date(timeStr);
+    const now = new Date();
+    const diff = now - date;
+    
+    if (diff < 60000) return '刚刚';
+    if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+    return timeStr.split('T')[0] + ' ' + timeStr.split('T')[1].substring(0, 5);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+window.onload = function() {
+    loadQualityConfig();
+    loadSmoothStatus();
+    loadComments();
+    autoRefreshInterval = setInterval(loadComments, 5000);
+    statusRefreshInterval = setInterval(loadSmoothStatus, 3000);
+};
+
+window.onbeforeunload = function() {
+    if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+    if (statusRefreshInterval) clearInterval(statusRefreshInterval);
+};
+</script>
+</body>
+</html>

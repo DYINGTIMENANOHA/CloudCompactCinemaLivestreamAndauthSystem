@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}视频库 - 云端放映室{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/cinema/static/css/library.css">
+<link rel="stylesheet" href="/cinema/static/css/sidebar.css">
+<link rel="stylesheet" href="/cinema/static/css/chat.css">
+{% endblock %}
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <span class="site-title">视频库</span>
+        <span class="user-name">{{ name }}</span>
+    </div>
+    <div class="topbar-right">
+        <button id="refresh-btn" class="topbar-btn" title="刷新">🔄 刷新</button>
+        <button id="rooms-btn" class="topbar-btn">👥 房间</button>
+        <button id="chat-btn" class="topbar-btn chat-btn">💬 聊天<span class="chat-badge" id="chat-badge"></span></button>
+    </div>
+</div>
+
+<!-- 聊天侧边栏 -->
+<div class="chat-overlay" id="chat-overlay"></div>
+<div class="chat-sidebar" id="chat-sidebar">
+    <div class="chat-header">
+        <h3>💬 聊天室</h3>
+        <div class="chat-header-actions">
+            <button class="chat-close" id="chat-close">✕</button>
+        </div>
+    </div>
+    <div class="chat-status" id="chat-status">
+        <span id="chat-status-text">未加入聊天室</span>
+    </div>
+    <div id="chat-body">
+        <div class="chat-lobby">
+            <div class="chat-lobby-empty">连接中...</div>
+        </div>
+    </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h3>👥 谁在看</h3>
+        <button class="sidebar-refresh" id="sidebar-refresh" title="刷新在线状态">🔄</button>
+        <button class="sidebar-close" id="sidebar-close">✕</button>
+    </div>
+    <div class="sidebar-body" id="sidebar-body">
+        <div class="sidebar-empty">连接中...</div>
+    </div>
+    <div class="sidebar-status" id="sidebar-status">
+        <span class="ws-dot connecting"></span>连接中...
+    </div>
+</div>
+
+<main class="library-main">
+    <div id="video-grid" class="video-grid">
+        <div class="loading">加载中...</div>
+    </div>
+</main>
+
+<script>
+window.CINEMA_VIDEO = { id: '' };
+window.CINEMA_TOKEN = {{ watch_token | tojson }};
+window.CINEMA_NAME = {{ name | tojson }};
+</script>
+{% endblock %}
+{% block extra_js %}
+<script src="/cinema/static/js/library.js"></script>
+<script src="/cinema/static/js/ws.js"></script>
+<script src="/cinema/static/js/chat.js"></script>
+{% endblock %}

@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Runtime data
+*.db
+*.sqlite
+*.sqlite3
+*.log
+logs/
+data/
+uploads/
+recordings/
+videos/
+videos_covers/
+keys/
+backups/
+
+# Local config
+.env
+*.local
+
+# Backups and editor files
+*.bak*
+*.backup*
+_old_files_archive*/
+_backup*/
+
+# OS
+.DS_Store
+Thumbs.db
