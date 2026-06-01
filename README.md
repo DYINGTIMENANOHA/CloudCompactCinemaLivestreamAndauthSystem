@@ -8,6 +8,35 @@ This repository is a lightweight monorepo for three related but separable server
 
 The previous live `nginx` directory is not kept as a project. Nginx is deployment glue, so this repo keeps reverse proxy examples in `docs/nginx-examples.md`.
 
+## Central Config
+
+Edit `system.config` in the repository root before deployment. It is the top-level place for important paths and interfaces:
+
+- public domain and public RTMP/HTTPS ports
+- `auth` install path, token DB path, and key directory
+- `cinema` internal host/port and runtime directories
+- `livestream` internal host/port and runtime directories
+- SRS RTMP, HTTP playback, and API ports
+- nginx reference ports
+
+The deploy scripts copy `system.config` into each installed project directory:
+
+```text
+/opt/auth/system.config
+/opt/cinema/system.config
+/opt/livestream/system.config
+```
+
+Services read this file at startup. After changing a deployed config, restart the affected service:
+
+```bash
+sudo systemctl restart cinema.service
+sudo systemctl restart livestream.service
+sudo systemctl restart srs-docker.service
+```
+
+Environment variables still have the highest priority, so advanced users can override any setting from systemd or a shell.
+
 ## Important Dependency
 
 For real use, deploy `auth` first.
@@ -76,13 +105,22 @@ Default install paths:
 - `cinema`: `/opt/cinema`
 - `livestream`: `/opt/livestream`
 
-Override paths when needed:
+Override paths when needed, either by editing `system.config` or by passing environment variables:
 
 ```bash
 APP_DIR=/srv/auth bash auth/deploy-linux.sh
 APP_DIR=/srv/cinema AUTH_BASE=/srv/auth bash cinema/deploy-linux.sh
 APP_DIR=/srv/livestream AUTH_BASE=/srv/auth bash livestream/deploy-linux.sh
 ```
+
+Override service/media ports by editing `system.config` before deployment. Environment variables also work for one-off deployment:
+
+```bash
+CINEMA_HOST=127.0.0.1 CINEMA_PORT=8891 bash cinema/deploy-linux.sh
+LIVESTREAM_PORT=8889 SRS_RTMP_PORT=1936 SRS_HTTP_PORT=8091 SRS_API_PORT=1986 bash livestream/deploy-linux.sh
+```
+
+For SRS, `livestream/run-srs.sh` generates `srs/srs.runtime.conf` from `system.config` each time `srs-docker.service` starts. This keeps SRS ports and livestream Python code aligned.
 
 ## What The Deploy Scripts Do
 
@@ -102,6 +140,7 @@ APP_DIR=/srv/livestream AUTH_BASE=/srv/auth bash livestream/deploy-linux.sh
 - creates `.venv` and installs `requirements.txt`
 - initializes `cinema.db`
 - writes and starts `cinema.service`
+- `cinema.service` starts through `run-service.sh`, which reads `system.config`
 
 `livestream/deploy-linux.sh`:
 
@@ -112,6 +151,7 @@ APP_DIR=/srv/livestream AUTH_BASE=/srv/auth bash livestream/deploy-linux.sh
 - initializes comments/recordings SQLite tables
 - writes and starts `livestream.service`
 - writes and starts `srs-docker.service` using `ossrs/srs:5`
+- both services start through wrapper scripts that read `system.config`
 
 ## Create Tokens And Admin Keys
 

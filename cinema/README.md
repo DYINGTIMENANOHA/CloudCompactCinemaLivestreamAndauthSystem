@@ -45,6 +45,28 @@ Default production layout:
 
 Only source/config examples are committed. Runtime directories are created by the deploy script.
 
+## Central Config
+
+Primary settings come from the repository root `system.config`. During deployment it is copied to:
+
+```text
+/opt/cinema/system.config
+```
+
+Important cinema settings:
+
+- `CINEMA_HOST`: internal bind host for FastAPI
+- `CINEMA_PORT`: internal FastAPI port for nginx proxying
+- `CINEMA_DATA_DIR`, `CINEMA_DB_PATH`
+- `CINEMA_UPLOADS_DIR`, `CINEMA_VIDEOS_DIR`, `CINEMA_COVERS_DIR`
+- `AUTH_BASE`: where cinema imports the auth library from
+
+After changing `/opt/cinema/system.config`, restart:
+
+```bash
+sudo systemctl restart cinema.service
+```
+
 ## Linux Deploy
 
 ```bash
@@ -63,10 +85,16 @@ The script:
 - writes `/etc/systemd/system/cinema.service`
 - enables and restarts `cinema.service`
 
-Override paths:
+Override paths by editing root `system.config`, or for one-off deploys:
 
 ```bash
 APP_DIR=/srv/cinema AUTH_BASE=/srv/auth bash deploy-linux.sh
+```
+
+Override host/port by editing `system.config`, or for one-off deploys:
+
+```bash
+CINEMA_HOST=127.0.0.1 CINEMA_PORT=8891 bash deploy-linux.sh
 ```
 
 ## Windows Local Run

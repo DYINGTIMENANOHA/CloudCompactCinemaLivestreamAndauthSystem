@@ -23,6 +23,24 @@ Default production layout:
 
 With that layout, `AUTH_BASE=/opt/auth`.
 
+## Central Config
+
+Primary settings come from the repository root `system.config`. During deployment it is copied to:
+
+```text
+/opt/auth/system.config
+```
+
+Important auth settings:
+
+- `AUTH_BASE`
+- `AUTH_TOKENS_DB`
+- `AUTH_KEYS_DIR`
+- `AUTH_VALID_ROOMS`
+- `PUBLIC_DOMAIN`, `PUBLIC_HTTPS_PORT`, `PUBLIC_RTMP_PORT` for generated links
+
+After changing `/opt/auth/system.config`, token management commands will read the new values automatically.
+
 ## Linux Deploy
 
 ```bash

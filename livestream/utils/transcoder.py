@@ -137,13 +137,13 @@ class TranscodeManager:
 
         cmd = [
             'ffmpeg',
-            '-i', 'rtmp://127.0.0.1:1935/live/stream',
+            '-i', config.SRS_RTMP_INPUT_URL,
             '-c:v', 'libx264',
             '-b:v', f'{bitrate_kbps}k',
             '-preset', preset,
             '-c:a', 'copy',
             '-f', 'flv',
-            'rtmp://127.0.0.1:1935/live/stream_smooth'
+            config.SRS_RTMP_SMOOTH_URL,
         ]
 
         try:

@@ -47,6 +47,32 @@ Default production layout:
   recordings/test/
 ```
 
+## Central Config
+
+Primary settings come from the repository root `system.config`. During deployment it is copied to:
+
+```text
+/opt/livestream/system.config
+```
+
+Important livestream/SRS settings:
+
+- `LIVESTREAM_HOST`: internal bind host for Flask
+- `LIVESTREAM_PORT`: internal Flask port for nginx and SRS on_publish
+- `SRS_RTMP_PORT`: RTMP ingest port
+- `SRS_HTTP_PORT`: HTTP-FLV/HLS playback port
+- `SRS_API_PORT`: SRS API port
+- `AUTH_BASE`: where livestream imports the auth library from
+
+After changing `/opt/livestream/system.config`, restart:
+
+```bash
+sudo systemctl restart livestream.service
+sudo systemctl restart srs-docker.service
+```
+
+`srs-docker.service` starts through `run-srs.sh`, which generates `srs/srs.runtime.conf` from `system.config`. This keeps SRS, smooth-mode transcoding, monitoring, and publish callbacks on the same ports.
+
 ## Linux Deploy
 
 ```bash
@@ -68,11 +94,19 @@ The script:
 - starts SRS with Docker image `ossrs/srs:5`
 - enables and restarts both services
 
-Override paths or SRS image:
+Override paths or SRS image by editing `system.config`, or for one-off deploys:
 
 ```bash
 APP_DIR=/srv/livestream AUTH_BASE=/srv/auth SRS_IMAGE=ossrs/srs:5 bash deploy-linux.sh
 ```
+
+Override ports by editing `system.config`, or for one-off deploys:
+
+```bash
+LIVESTREAM_PORT=8889 SRS_RTMP_PORT=1936 SRS_HTTP_PORT=8091 SRS_API_PORT=1986 bash deploy-linux.sh
+```
+
+Runtime source order is: real environment variables, then `system.config`, then code defaults.
 
 ## SRS Ports
 

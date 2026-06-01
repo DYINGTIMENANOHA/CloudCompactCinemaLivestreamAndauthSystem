@@ -1,9 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="${BASE_URL:-https://YOUR_DOMAIN:8443}"
-RTMP_HOST="${RTMP_HOST:-rtmp://YOUR_DOMAIN:1935}"
 AUTH_BASE="${AUTH_BASE:-$(cd "$(dirname "$0")" && pwd)}"
+SYSTEM_CONFIG="${SYSTEM_CONFIG:-$AUTH_BASE/system.config}"
+if [ -f "$SYSTEM_CONFIG" ]; then
+  set -a
+  . "$SYSTEM_CONFIG"
+  set +a
+fi
+
+if [ "${PUBLIC_HTTPS_PORT:-443}" = "443" ]; then
+  DEFAULT_BASE_URL="https://${PUBLIC_DOMAIN:-YOUR_DOMAIN}"
+else
+  DEFAULT_BASE_URL="https://${PUBLIC_DOMAIN:-YOUR_DOMAIN}:${PUBLIC_HTTPS_PORT:-443}"
+fi
+BASE_URL="${BASE_URL:-$DEFAULT_BASE_URL}"
+RTMP_HOST="${RTMP_HOST:-rtmp://${PUBLIC_DOMAIN:-YOUR_DOMAIN}:${PUBLIC_RTMP_PORT:-${SRS_RTMP_PORT:-1935}}}"
 TOKENS_DB="${AUTH_TOKENS_DB:-$AUTH_BASE/data/tokens.db}"
 KEYS_DIR="${AUTH_KEYS_DIR:-$AUTH_BASE/keys}"
 

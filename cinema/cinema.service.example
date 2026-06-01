@@ -9,7 +9,8 @@ Group=www-data
 WorkingDirectory=/opt/cinema
 Environment=AUTH_BASE=/opt/auth
 Environment=CINEMA_BASE_DIR=/opt/cinema
-ExecStart=/opt/cinema/.venv/bin/uvicorn app:app --host 127.0.0.1 --port 8890 --workers 1
+Environment=SYSTEM_CONFIG=/opt/cinema/system.config
+ExecStart=/bin/bash /opt/cinema/run-service.sh
 Restart=on-failure
 RestartSec=5
 

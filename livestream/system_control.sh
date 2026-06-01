@@ -2,6 +2,13 @@
 set -euo pipefail
 
 APP_SERVICE="${APP_SERVICE:-livestream.service}"
+APP_DIR="${APP_DIR:-$(cd "$(dirname "$0")" && pwd)}"
+SYSTEM_CONFIG="${SYSTEM_CONFIG:-$APP_DIR/system.config}"
+if [ -f "$SYSTEM_CONFIG" ]; then
+  set -a
+  . "$SYSTEM_CONFIG"
+  set +a
+fi
 SRS_CONTAINER="${SRS_CONTAINER:-srs}"
 
 case "${1:-help}" in
