@@ -75,6 +75,21 @@ Token types:
 - `group`: grouped viewing behavior, if the frontend uses it
 - `stealth`: hidden/quiet viewing behavior, if the frontend uses it
 
+## Daily Management
+
+`auth` has no daemon to start or stop. Use `manage.sh` for operational checks:
+
+```bash
+cd /opt/auth
+./manage.sh init
+./manage.sh status
+./manage.sh list
+./manage.sh backup
+./manage.sh config
+```
+
+`start`, `stop`, and `restart` are accepted as no-op helper commands because auth is a library plus SQLite/key files, not a service.
+
 ## Windows Local Init
 
 ```powershell

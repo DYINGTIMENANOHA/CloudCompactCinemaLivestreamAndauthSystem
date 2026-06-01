@@ -9,11 +9,25 @@ case "${1:-help}" in
   start) sudo systemctl start "$SERVICE" ;;
   stop) sudo systemctl stop "$SERVICE" ;;
   restart) sudo systemctl restart "$SERVICE" ;;
+  reload)
+    sudo systemctl restart "$SERVICE"
+    ;;
   status)
     sudo systemctl status "$SERVICE" --no-pager
     ;;
   log)
     sudo journalctl -u "$SERVICE" -f --no-pager
+    ;;
+  logs)
+    sudo journalctl -u "$SERVICE" -f --no-pager
+    ;;
+  config)
+    SYSTEM_CONFIG="${SYSTEM_CONFIG:-$CINEMA_BASE_DIR/system.config}"
+    if [ -f "$SYSTEM_CONFIG" ]; then
+      cat "$SYSTEM_CONFIG"
+    else
+      echo "No system config found at $SYSTEM_CONFIG"
+    fi
     ;;
   init-db)
     CINEMA_BASE_DIR="$CINEMA_BASE_DIR" CINEMA_DB_PATH="$DB_PATH" python3 -c "from core import db; db.init_db()"
@@ -23,6 +37,6 @@ case "${1:-help}" in
     sqlite3 "$DB_PATH" "SELECT COUNT(*) AS videos FROM videos;" 2>/dev/null || true
     ;;
   help|*)
-    echo "Usage: $0 {start|stop|restart|status|log|init-db|usage}"
+    echo "Usage: $0 {start|stop|restart|reload|status|log|logs|config|init-db|usage}"
     ;;
 esac

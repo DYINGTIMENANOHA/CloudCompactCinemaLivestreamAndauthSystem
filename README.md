@@ -171,6 +171,40 @@ AUTH_BASE=/opt/auth ./manage_token.sh add-watch test full
 
 Use the generated watch URLs/admin tokens according to each project's README.
 
+## Daily Service Management
+
+Each project has its own management entry:
+
+```bash
+/opt/auth/manage.sh status
+/opt/cinema/manage.sh status
+/opt/livestream/system_control.sh status
+```
+
+Common commands:
+
+```bash
+/opt/cinema/manage.sh start
+/opt/cinema/manage.sh stop
+/opt/cinema/manage.sh restart
+/opt/cinema/manage.sh logs
+
+/opt/livestream/system_control.sh start
+/opt/livestream/system_control.sh stop
+/opt/livestream/system_control.sh restart
+/opt/livestream/system_control.sh logs all
+/opt/livestream/system_control.sh logs srs
+```
+
+`auth` has no long-running daemon. Its management script handles database/key status, initialization, token listing, and backups:
+
+```bash
+/opt/auth/manage.sh init
+/opt/auth/manage.sh status
+/opt/auth/manage.sh list
+/opt/auth/manage.sh backup
+```
+
 ## Nginx
 
 See `docs/nginx-examples.md`. The deployment scripts do not overwrite your nginx configuration because domain names, certificates, ports, and firewall layout vary by server.

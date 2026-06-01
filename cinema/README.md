@@ -97,6 +97,20 @@ Override host/port by editing `system.config`, or for one-off deploys:
 CINEMA_HOST=127.0.0.1 CINEMA_PORT=8891 bash deploy-linux.sh
 ```
 
+## Daily Management
+
+```bash
+cd /opt/cinema
+./manage.sh start
+./manage.sh stop
+./manage.sh restart
+./manage.sh reload
+./manage.sh status
+./manage.sh logs
+./manage.sh usage
+./manage.sh config
+```
+
 ## Windows Local Run
 
 ```powershell

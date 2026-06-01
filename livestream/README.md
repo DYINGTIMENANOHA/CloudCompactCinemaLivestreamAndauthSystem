@@ -108,6 +108,23 @@ LIVESTREAM_PORT=8889 SRS_RTMP_PORT=1936 SRS_HTTP_PORT=8091 SRS_API_PORT=1986 bas
 
 Runtime source order is: real environment variables, then `system.config`, then code defaults.
 
+## Daily Management
+
+```bash
+cd /opt/livestream
+./system_control.sh start
+./system_control.sh stop
+./system_control.sh restart
+./system_control.sh reload
+./system_control.sh status
+./system_control.sh logs all
+./system_control.sh logs app
+./system_control.sh logs srs
+./system_control.sh config
+```
+
+`restart` and `reload` both restart the Flask service and SRS so config changes are picked up.
+
 ## SRS Ports
 
 With the default Docker host-network setup:
