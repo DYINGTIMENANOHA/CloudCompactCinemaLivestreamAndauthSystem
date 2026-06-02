@@ -207,7 +207,24 @@ Common commands:
 
 ## Nginx
 
-See `docs/nginx-examples.md`. The deployment scripts do not overwrite your nginx configuration because domain names, certificates, ports, and firewall layout vary by server.
+Run the root nginx deployment helper after editing `system.config`:
+
+```bash
+bash deploy-nginx.sh
+```
+
+The script installs nginx, asks for your domain, writes `/etc/nginx/sites-available/cloud-system.conf`, enables it, reloads nginx, and can request a Let's Encrypt HTTPS certificate through certbot.
+
+It proxies:
+
+- `/` to livestream
+- `/cinema/` to cinema
+- `/cinema/ws` and `/cinema/chat-ws` to cinema WebSocket routes
+- `/live/` and `/test/` to SRS HTTP-FLV/HLS playback
+
+By default it does not expose SRS `/api/v1/` publicly. The script asks before adding that proxy.
+
+See `docs/nginx-examples.md` for the generated layout and manual configuration notes.
 
 ## Windows Local Testing
 

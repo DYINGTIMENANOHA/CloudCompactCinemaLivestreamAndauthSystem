@@ -1,6 +1,14 @@
 # Nginx Examples
 
-Replace `YOUR_DOMAIN`, certificate paths, and local ports for your server.
+The easiest production path is the root helper:
+
+```bash
+bash deploy-nginx.sh
+```
+
+It installs nginx, asks for your domain, writes `/etc/nginx/sites-available/cloud-system.conf`, enables the site, reloads nginx, and can request a Let's Encrypt certificate through certbot.
+
+Use the manual example below only if you want to manage nginx yourself. Replace `YOUR_DOMAIN`, certificate paths, and local ports for your server.
 
 ## Combined HTTPS Server
 
