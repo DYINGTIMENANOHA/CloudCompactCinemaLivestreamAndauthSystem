@@ -21,6 +21,12 @@
     const volumeSlider = document.getElementById('volume-slider');
     const fullscreenBtn = document.getElementById('fullscreen-btn');
     const downloadStatus = document.getElementById('download-status');
+    const skipBackBtn = document.getElementById('skip-back-btn');
+    const skipForwardBtn = document.getElementById('skip-forward-btn');
+    const skipSyncToast = document.getElementById('skip-sync-toast');
+    const skipSyncSendBtn = document.getElementById('skip-sync-send-btn');
+    const skipSyncCancelBtn = document.getElementById('skip-sync-cancel-btn');
+    const skipSyncCountdownEl = document.getElementById('skip-sync-countdown');
 
     // ===== 工具 =====
     function formatTime(seconds) {
@@ -90,6 +96,61 @@
             params: params || {},
         });
     }
+
+    // ===== 跳转 ±10s(本地跳转,不立即同步) =====
+    let skipSyncTimer = null;
+    let skipSyncCountdown = 0;
+
+    function hideSkipSyncToast() {
+        skipSyncToast.classList.remove('visible');
+        clearInterval(skipSyncTimer);
+        skipSyncTimer = null;
+    }
+
+    function showSkipSyncToast() {
+        if (!isInRoom()) return;
+        skipSyncToast.classList.add('visible');
+        clearInterval(skipSyncTimer);
+        skipSyncCountdown = 10;
+        skipSyncCountdownEl.textContent = skipSyncCountdown;
+        skipSyncTimer = setInterval(() => {
+            skipSyncCountdown--;
+            skipSyncCountdownEl.textContent = skipSyncCountdown;
+            if (skipSyncCountdown <= 0) hideSkipSyncToast();
+        }, 1000);
+    }
+
+    function doSkip(delta) {
+        if (!player.duration || !isFinite(player.duration)) return;
+        player.currentTime = Math.max(0, Math.min(player.duration, player.currentTime + delta));
+        showSkipSyncToast();
+    }
+
+    skipBackBtn.addEventListener('click', () => doSkip(-10));
+    skipForwardBtn.addEventListener('click', () => doSkip(10));
+
+    document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if (e.key === 'ArrowLeft') { e.preventDefault(); doSkip(-10); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); doSkip(10); }
+        else if (e.key === ' ') {
+            e.preventDefault();
+            if (skipSyncToast.classList.contains('visible')) {
+                sendSyncAction('seek', { time: player.currentTime });
+                hideSkipSyncToast();
+            } else {
+                if (player.paused) player.play();
+                else player.pause();
+            }
+        }
+    });
+
+    skipSyncSendBtn.addEventListener('click', () => {
+        sendSyncAction('seek', { time: player.currentTime });
+        hideSkipSyncToast();
+    });
+
+    skipSyncCancelBtn.addEventListener('click', hideSkipSyncToast);
 
     // ===== 进度条 =====
     let isDraggingSlider = false;
@@ -286,6 +347,7 @@
         // 收到 sync_apply: 执行远程的 seek/play/pause
         applySyncAction: function (action, params) {
             console.log('[watch] applying sync:', action, params);
+            hideSkipSyncToast();
             withSuppressed(() => {
                 if (action === 'seek') {
                     const t = parseFloat(params.time || 0);

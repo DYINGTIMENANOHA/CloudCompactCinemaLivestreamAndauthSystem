@@ -85,6 +85,15 @@ opportunity_locks: dict = {}
 pending_switches: dict = {}
 
 
+# 房主断线宽限期: (token, name) -> {
+#     "old_host_sid": str,
+#     "video_id": Optional[str],
+#     "expire_at": float,
+#     "timer_task": asyncio.Task,
+# }
+pending_reconnects: dict = {}
+
+
 def is_visible_to(target: Session, viewer: Session) -> bool:
     """
     判断 target 对 viewer 是否可见。

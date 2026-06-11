@@ -852,3 +852,62 @@ video::cue {
     padding: 4px 8px;
     border-radius: 4px;
 }
+
+/* === 跳转同步提示条(±10s 本地跳转后出现) === */
+.player-skip-sync-banner {
+    display: none;
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    background: rgba(15, 15, 35, 0.95);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    max-width: 92%;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid rgba(124, 92, 255, 0.4);
+    white-space: nowrap;
+}
+
+.player-skip-sync-banner.visible {
+    display: flex;
+}
+
+.skip-sync-send-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+
+.skip-sync-send-btn:hover {
+    background: #6a4ae0;
+}
+
+.skip-sync-cancel-btn {
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0 2px;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color 0.15s;
+}
+
+.skip-sync-cancel-btn:hover {
+    color: var(--text-primary);
+}

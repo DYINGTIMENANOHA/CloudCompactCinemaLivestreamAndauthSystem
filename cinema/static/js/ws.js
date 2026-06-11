@@ -321,6 +321,63 @@
         });
     }
 
+    // ===== 房主断线等待重连横幅 =====
+    let hostReconnectingBanner = null;
+    let hostReconnectingTimer = null;
+    let disconnectedHostName = null;  // 断线中的房主名,用于 mode bar 显示
+
+    function ensureHostReconnectingBanner() {
+        if (hostReconnectingBanner) return hostReconnectingBanner;
+        const wrapper = document.getElementById('player-wrapper') || document.body;
+        hostReconnectingBanner = document.createElement('div');
+        hostReconnectingBanner.id = 'host-reconnecting-banner';
+        hostReconnectingBanner.style.cssText =
+            'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);' +
+            'z-index:200;background:rgba(180,120,20,0.97);color:white;' +
+            'padding:18px 32px;border-radius:12px;font-size:15px;font-weight:600;' +
+            'box-shadow:0 6px 24px rgba(0,0,0,0.6);text-align:center;' +
+            'max-width:90%;display:none;border:2px solid #ffa500;';
+        if (wrapper === document.body) {
+            hostReconnectingBanner.style.position = 'fixed';
+        }
+        wrapper.appendChild(hostReconnectingBanner);
+        return hostReconnectingBanner;
+    }
+
+    function showHostReconnectingBanner(hostName, totalSeconds) {
+        const banner = ensureHostReconnectingBanner();
+        if (!banner) return;
+        let remaining = totalSeconds;
+
+        function render() {
+            banner.innerHTML =
+                `<div style="margin-bottom:8px;">⏳ 房主 ${escapeHtml(hostName)} 暂时断线</div>` +
+                `<div style="font-size:13px;opacity:0.9;">等待重连中... (${remaining}s)</div>`;
+            banner.style.display = 'block';
+        }
+
+        render();
+        if (hostReconnectingTimer) clearInterval(hostReconnectingTimer);
+        hostReconnectingTimer = setInterval(() => {
+            remaining--;
+            if (remaining > 0) {
+                render();
+            } else {
+                clearInterval(hostReconnectingTimer);
+                hostReconnectingTimer = null;
+            }
+        }, 1000);
+    }
+
+    function hideHostReconnectingBanner() {
+        if (hostReconnectingBanner) hostReconnectingBanner.style.display = 'none';
+        if (hostReconnectingTimer) {
+            clearInterval(hostReconnectingTimer);
+            hostReconnectingTimer = null;
+        }
+        disconnectedHostName = null;
+    }
+
     function showHostWaitingBanner(delaySec) {
         const banner = ensureHostWaitingBanner();
         if (!banner) return;
@@ -581,8 +638,24 @@
                 updateModeBar();
                 break;
 
+            case 'host_disconnected':
+                // 房主暂时断线,进入宽限期等待
+                disconnectedHostName = data.host_name || '房主';
+                showHostReconnectingBanner(disconnectedHostName, data.reconnect_seconds || 60);
+                updateModeBar();
+                break;
+
+            case 'host_reconnected':
+                // 房主在宽限期内重连成功
+                hideHostReconnectingBanner();
+                myHostSid = data.host_sid;
+                showToast(`房主 ${data.host_name || ''} 已重连`);
+                updateModeBar();
+                break;
+
             case 'room_dissolved':
                 {
+                    hideHostReconnectingBanner();
                     const reason = data.reason || '';
                     const hostName = data.host_name || '房主';
                     let msg = `你已离开${hostName ? ' ' + hostName : ''}的房间`;
@@ -780,7 +853,7 @@
             if (fsRoomBtn) fsRoomBtn.style.display = 'none';
         } else {
             const host = findViewerBySid(myHostSid);
-            const hostName = host ? host.name : '未知';
+            const hostName = host ? host.name : (disconnectedHostName || '未知');
             // 非全屏 mode-bar
             modeBar.className = 'mode-bar mode-sync';
             modeBar.innerHTML = `
