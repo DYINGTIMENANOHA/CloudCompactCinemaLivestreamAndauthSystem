@@ -60,6 +60,7 @@
 
     <div class="player-wrapper" id="player-wrapper">
         <video id="player" preload="auto" tabindex="0" playsinline webkit-playsinline></video>
+        <div id="danmaku-layer" class="danmaku-layer" aria-hidden="true"></div>
 
         <div class="player-overlay" id="player-overlay">
             <button class="play-overlay" id="play-overlay" type="button" title="点击播放">▶</button>
@@ -97,6 +98,7 @@
                            min="0" max="100" value="100">
                 </span>
                 <div class="ctrl-spacer"></div>
+                <button id="danmaku-btn" class="ctrl-btn" type="button" title="弹幕">弹</button>
                 <button id="subtitle-btn" class="ctrl-btn" type="button" title="字幕">CC</button>
                 <button id="fullscreen-btn" class="ctrl-btn" type="button">⛶</button>
             </div>
@@ -128,6 +130,7 @@
 </main>
 
 <input type="file" id="subtitle-file-input" accept=".srt,.ass,.ssa,.vtt,.sub,.txt" style="display:none;">
+<input type="file" id="danmaku-file-input" accept=".ass,.ssa,.xml,.json,.txt" style="display:none;">
 
 <script>
 window.CINEMA_VIDEO = {
@@ -146,6 +149,7 @@ window.CINEMA_NAME = {{ name | tojson }};
 {% block extra_js %}
 <script src="/cinema/static/js/watch.js"></script>
 <script src="/cinema/static/js/subtitle.js"></script>
+<script src="/cinema/static/js/danmaku.js"></script>
 <script src="/cinema/static/js/ws.js"></script>
 <script src="/cinema/static/js/chat.js"></script>
 {% endblock %}

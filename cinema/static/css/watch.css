@@ -817,6 +817,167 @@ body.has-bg-watch {
     color: white;
 }
 
+/* ===== 弹幕 ===== */
+#danmaku-btn {
+    font-size: 13px;
+    font-weight: 800;
+    padding: 4px 9px;
+    border-radius: 4px;
+}
+
+#danmaku-btn.active {
+    background: var(--accent);
+    color: white;
+}
+
+.danmaku-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: var(--danmaku-area-height, 58%);
+    z-index: 5;
+    overflow: hidden;
+    pointer-events: none;
+    contain: layout paint;
+}
+
+.danmaku-layer.hidden {
+    display: none;
+}
+
+.danmaku-item {
+    position: absolute;
+    max-width: none;
+    white-space: pre;
+    line-height: 1.2;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    font-weight: 700;
+    will-change: transform;
+    text-shadow:
+        1px 1px 2px rgba(0, 0, 0, 0.95),
+        -1px -1px 2px rgba(0, 0, 0, 0.8),
+        0 0 4px rgba(0, 0, 0, 0.7);
+}
+
+.danmaku-style-light .danmaku-item {
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+}
+
+.danmaku-style-strong .danmaku-item {
+    font-weight: 900;
+    text-shadow:
+        1px 1px 2px #000,
+        -1px -1px 2px #000,
+        0 0 5px #000,
+        0 0 8px rgba(0, 0, 0, 0.9);
+}
+
+.danmaku-scroll {
+    left: 100%;
+    animation-name: danmaku-scroll;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+}
+
+.danmaku-top,
+.danmaku-bottom {
+    text-align: center;
+    animation: danmaku-fixed 4s linear forwards;
+}
+
+.danmaku-layer.paused .danmaku-item {
+    animation-play-state: paused;
+}
+
+@keyframes danmaku-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(calc(-100vw - 100%)); }
+}
+
+@keyframes danmaku-fixed {
+    0% { opacity: 0; }
+    8% { opacity: var(--dm-opacity, 1); }
+    92% { opacity: var(--dm-opacity, 1); }
+    100% { opacity: 0; }
+}
+
+.danmaku-menu {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+    color: var(--text-primary);
+    overflow: hidden;
+    min-width: 220px;
+}
+
+.danmaku-menu-item {
+    display: block;
+    width: 100%;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
+}
+
+.danmaku-menu-item:hover {
+    background: var(--bg-tertiary);
+}
+
+.danmaku-menu-section {
+    padding: 10px 12px 12px;
+    display: grid;
+    gap: 9px;
+    font-size: 12px;
+}
+
+.danmaku-menu-section label {
+    display: grid;
+    gap: 5px;
+    color: var(--text-secondary);
+}
+
+.danmaku-menu-section label:has(input[type="checkbox"]) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.danmaku-menu-section select,
+.danmaku-menu-section input[type="range"] {
+    width: 100%;
+}
+
+.danmaku-menu-section select {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text-primary);
+    padding: 5px 8px;
+}
+
+.danmaku-reload-prompt {
+    position: absolute;
+    bottom: 92px;
+    left: 50%;
+    z-index: 250;
+    transform: translateX(-50%);
+    background: rgba(40, 40, 60, 0.92);
+    color: #ddd;
+    border: 1px solid #555;
+    padding: 6px 18px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
 /* 字幕菜单 */
 .subtitle-menu {
     background: var(--bg-primary);
