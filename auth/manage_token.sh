@@ -89,7 +89,13 @@ case "${1:-help}" in
     sqlite3 "$TOKENS_DB" \
       "INSERT INTO tokens (token, type, room, active, token_type) VALUES ('$token', 'watch', '$room', 1, '$token_type');"
     echo "Token: $token"
-    echo "Watch URL: $BASE_URL/$room?token=$token"
+    case "$room" in
+      live) watch_path="/watch" ;;
+      test) watch_path="/test-watch" ;;
+      cinema) watch_path="/cinema" ;;
+      *) watch_path="/$room" ;;
+    esac
+    echo "Watch URL: $BASE_URL$watch_path?token=$token"
     ;;
   list)
     ensure_db
@@ -126,8 +132,26 @@ case "${1:-help}" in
     echo "$key" > "$KEYS_DIR/${room}_admin.key"
     chmod 600 "$KEYS_DIR/${room}_admin.key" 2>/dev/null || true
     echo "Admin token: $key"
-    echo "Admin URL: $BASE_URL/$room/admin?token=$key"
-    echo "RTMP push: $RTMP_HOST/$room"
+    case "$room" in
+      live)
+        admin_path="/admin"
+        rtmp_path="/live/stream?key=$key"
+        ;;
+      test)
+        admin_path="/test-admin"
+        rtmp_path="/test/stream?key=$key"
+        ;;
+      cinema)
+        admin_path="/cinema/admin"
+        rtmp_path="/cinema"
+        ;;
+      *)
+        admin_path="/$room/admin"
+        rtmp_path="/$room"
+        ;;
+    esac
+    echo "Admin URL: $BASE_URL$admin_path?token=$key"
+    echo "RTMP push: $RTMP_HOST$rtmp_path"
     ;;
   show-admin)
     room="${2:-}"
@@ -136,8 +160,26 @@ case "${1:-help}" in
     if [ ! -f "$key_file" ]; then echo "No key file: $key_file"; exit 1; fi
     key="$(cat "$key_file")"
     echo "Admin token: $key"
-    echo "Admin URL: $BASE_URL/$room/admin?token=$key"
-    echo "RTMP push: $RTMP_HOST/$room"
+    case "$room" in
+      live)
+        admin_path="/admin"
+        rtmp_path="/live/stream?key=$key"
+        ;;
+      test)
+        admin_path="/test-admin"
+        rtmp_path="/test/stream?key=$key"
+        ;;
+      cinema)
+        admin_path="/cinema/admin"
+        rtmp_path="/cinema"
+        ;;
+      *)
+        admin_path="/$room/admin"
+        rtmp_path="/$room"
+        ;;
+    esac
+    echo "Admin URL: $BASE_URL$admin_path?token=$key"
+    echo "RTMP push: $RTMP_HOST$rtmp_path"
     ;;
   help|*)
     usage
