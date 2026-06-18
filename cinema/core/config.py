@@ -38,6 +38,7 @@ LOG_DIR = Path(_cfg("CINEMA_LOG_DIR", BASE_DIR / "logs"))
 UPLOADS_DIR = Path(_cfg("CINEMA_UPLOADS_DIR", BASE_DIR / "uploads"))
 VIDEOS_DIR = Path(_cfg("CINEMA_VIDEOS_DIR", BASE_DIR / "videos"))
 COVERS_DIR = Path(_cfg("CINEMA_COVERS_DIR", BASE_DIR / "videos_covers"))
+SUBTITLES_DIR = Path(_cfg("CINEMA_SUBTITLES_DIR", BASE_DIR / "subtitles"))
 STATIC_DIR = Path(_cfg("CINEMA_STATIC_DIR", BASE_DIR / "static"))
 TEMPLATES_DIR = Path(_cfg("CINEMA_TEMPLATES_DIR", BASE_DIR / "templates"))
 

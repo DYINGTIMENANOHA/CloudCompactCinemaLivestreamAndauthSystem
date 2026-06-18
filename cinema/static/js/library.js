@@ -72,7 +72,7 @@
                     ${thumbHtml}
                     <div class="info">
                         <div class="title">${escapeHtml(v.display_name)}</div>
-                        <div class="duration">${formatDuration(v.duration_seconds)}</div>
+                        <div class="duration">${formatDuration(v.duration_seconds)}${v.subtitle_url ? '<span class="subtitle-tag">字幕</span>' : ''}</div>
                     </div>
                 </div>
             `;

@@ -173,7 +173,52 @@
         }
     }
 
+    // 紧凑菜单：3 个按钮，与字幕菜单交互一致
     function showMenu() {
+        removeMenu();
+        menuEl = document.createElement('div');
+        menuEl.className = 'danmaku-menu';
+        menuEl.innerHTML = `
+            <button class="danmaku-menu-item" id="dm-toggle">${settings.enabled ? '隐藏弹幕' : '显示弹幕'}</button>
+            <button class="danmaku-menu-item" id="dm-change">更换弹幕</button>
+            <button class="danmaku-menu-item" id="dm-open-settings">打开设置</button>
+            <button class="danmaku-menu-item" id="dm-remove">关闭弹幕</button>
+        `;
+        const rect = danmakuBtn.getBoundingClientRect();
+        const wrapperRect = wrapper.getBoundingClientRect();
+        menuEl.style.cssText = `
+            position:absolute;
+            bottom:${wrapperRect.bottom - rect.top + 8}px;
+            right:${wrapperRect.right - rect.right}px;
+            z-index:320;
+        `;
+        wrapper.appendChild(menuEl);
+
+        menuEl.querySelector('#dm-toggle').addEventListener('click', () => {
+            settings.enabled = !settings.enabled;
+            saveAndApplySettings(true);
+            removeMenu();
+        });
+        menuEl.querySelector('#dm-change').addEventListener('click', () => {
+            removeMenu();
+            userPickDanmaku();
+        });
+        menuEl.querySelector('#dm-open-settings').addEventListener('click', () => {
+            removeMenu();
+            showSettings();
+        });
+        menuEl.querySelector('#dm-remove').addEventListener('click', () => {
+            removeMenu();
+            removeDanmaku();
+        });
+
+        setTimeout(() => {
+            document.addEventListener('click', closeMenuOnOutside, { once: true });
+        }, 50);
+    }
+
+    // 完整设置面板
+    function showSettings() {
         removeMenu();
         menuEl = document.createElement('div');
         menuEl.className = 'danmaku-menu';

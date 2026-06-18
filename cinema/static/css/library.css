@@ -82,6 +82,18 @@ body.has-bg-library {
     color: var(--text-secondary);
 }
 
+.subtitle-tag {
+    display: inline-block;
+    font-size: 9px;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    padding: 1px 4px;
+    margin-left: 5px;
+    vertical-align: middle;
+    opacity: 0.8;
+}
+
 .loading,
 .empty {
     grid-column: 1 / -1;

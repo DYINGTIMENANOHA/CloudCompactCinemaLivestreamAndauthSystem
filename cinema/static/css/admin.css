@@ -456,6 +456,37 @@
     background: rgba(124, 92, 255, 0.15);
 }
 
+/* 字幕徽章(视频库行名字旁) */
+.subtitle-badge {
+    display: inline-block;
+    font-size: 10px;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    padding: 1px 5px;
+    margin-left: 6px;
+    vertical-align: middle;
+    font-weight: normal;
+    opacity: 0.75;
+}
+
+/* 字幕按钮(视频库行) — 与封面按钮同样样式 */
+.subtitle-upload-btn {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-right: 8px;
+}
+
+.subtitle-upload-btn:hover {
+    background: rgba(124, 92, 255, 0.15);
+}
+
 /* ===== 上传任务管理 v2 ===== */
 .section-title-row {
     display: flex;

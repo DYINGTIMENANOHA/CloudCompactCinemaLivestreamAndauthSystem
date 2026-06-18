@@ -2,12 +2,15 @@
 Cloud Cinema 主入口
 """
 import asyncio
+import mimetypes
 from fastapi import FastAPI
+
+mimetypes.add_type('text/vtt', '.vtt')
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from core import config, db, state, transcoder
-from routes import entry, library, api, admin, watch, ws, covers, chat
+from routes import entry, library, api, admin, watch, ws, covers, chat, subtitles
 
 
 def cleanup_orphans():
@@ -83,6 +86,8 @@ app = FastAPI(lifespan=lifespan)
 
 app.mount("/cinema/static", StaticFiles(directory=str(config.STATIC_DIR)), name="static")
 app.mount("/cinema/covers", StaticFiles(directory=str(config.COVERS_DIR)), name="covers")
+config.SUBTITLES_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/cinema/subtitles", StaticFiles(directory=str(config.SUBTITLES_DIR)), name="subtitles")
 
 app.include_router(entry.router)
 app.include_router(library.router)
@@ -91,4 +96,5 @@ app.include_router(admin.router)
 app.include_router(watch.router)
 app.include_router(ws.router)
 app.include_router(covers.router)
+app.include_router(subtitles.router)
 app.include_router(chat.router)

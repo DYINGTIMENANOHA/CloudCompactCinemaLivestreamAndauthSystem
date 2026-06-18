@@ -65,13 +65,18 @@ async def api_videos(request: Request):
         return JSONResponse({"error": "unauthorized"}, status_code=403)
     videos = db.get_all_videos()
     covers_dir = config.COVERS_DIR
+    subtitles_dir = config.SUBTITLES_DIR
     for v in videos:
         vid = v.get("id", "")
         cover_file = covers_dir / f"{vid}.jpg"
-        if cover_file.exists():
-            v["cover_url"] = f"/cinema/covers/{vid}.jpg"
-        else:
-            v["cover_url"] = None
+        v["cover_url"] = f"/cinema/covers/{vid}.jpg" if cover_file.exists() else None
+        sub_url = None
+        for ext in ('.vtt', '.srt', '.ass', '.ssa'):
+            sub_file = subtitles_dir / f"{vid}{ext}"
+            if sub_file.exists():
+                sub_url = f"/cinema/subtitles/{sub_file.name}"
+                break
+        v["subtitle_url"] = sub_url
     return {"videos": videos}
 
 
@@ -447,6 +452,11 @@ async def api_delete_video(request: Request, video_id: str):
         (config.COVERS_DIR / f"{video_id}.jpg").unlink(missing_ok=True)
     except OSError:
         pass
+    for ext in ('.srt', '.ass', '.ssa', '.vtt'):
+        try:
+            (config.SUBTITLES_DIR / f"{video_id}{ext}").unlink(missing_ok=True)
+        except OSError:
+            pass
     return {"ok": True}
 
 

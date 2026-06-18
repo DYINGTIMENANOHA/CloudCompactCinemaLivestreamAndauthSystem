@@ -23,6 +23,11 @@
     let currentBlobUrl = null;
     let subtitleActive = false;
 
+    // 云端字幕状态
+    let cloudSubtitleUrl      = null;  // 服务器返回的 URL，null 表示无云端字幕
+    let cloudSubtitleFilename = null;  // 原始文件名（用于判断扩展名）
+    let isCloudSubtitle       = false; // 当前显示的是否是云端字幕
+
     // ===== IndexedDB helpers (存储 FileSystemFileHandle) =====
     const DB_NAME    = 'cinema_subtitle';
     const STORE_NAME = 'handles';
@@ -120,6 +125,7 @@
         }
 
         loadVttToPlayer(vttContent);
+        isCloudSubtitle = false;
         subtitleActive = true;
         subtitleBtn.classList.add('active');
         showSubtitleToast((autoLoad ? '已自动加载字幕: ' : '字幕已加载: ') + file.name);
@@ -138,11 +144,53 @@
         }
     }
 
+    // ===== 加载云端字幕 =====
+    // 服务端已将所有格式统一转为 VTT，直接设 track.src 让浏览器原生加载，无需 fetch/blob
+    function _loadCloudSubtitle() {
+        removeSubtitle(false);
+
+        currentTrack          = document.createElement('track');
+        currentTrack.kind     = 'subtitles';
+        currentTrack.label    = '云端字幕';
+        currentTrack.srclang  = 'zh';
+        currentTrack.src      = cloudSubtitleUrl;
+        currentTrack.default  = true;
+        player.appendChild(currentTrack);
+
+        currentTrack.addEventListener('error', () => {
+            showSubtitleToast('云端字幕加载失败');
+            removeSubtitle(false);
+        });
+
+        isCloudSubtitle = true;
+        subtitleActive  = true;
+        subtitleBtn.classList.add('active');
+
+        const forceShowing = () => {
+            for (let i = 0; i < player.textTracks.length; i++) {
+                player.textTracks[i].mode = 'showing';
+            }
+            if (currentTrack && currentTrack.track) currentTrack.track.mode = 'showing';
+        };
+        currentTrack.addEventListener('load', forceShowing);
+        [200, 800].forEach(ms => setTimeout(forceShowing, ms));
+
+        showSubtitleToast('已加载云端字幕');
+
+        const modeBar = document.getElementById('mode-bar');
+        if (modeBar && !modeBar.dataset.subtitleMark) {
+            modeBar.dataset.subtitleMark = '1';
+            modeBar.textContent += ' · 字幕';
+        }
+    }
+
     // ===== CC 按钮点击 =====
     subtitleBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         if (subtitleActive) {
             showSubtitleMenu(e);
+        } else if (cloudSubtitleUrl) {
+            showSubtitleSourcePicker(e);
         } else {
             await _userPickSubtitle();
         }
@@ -159,15 +207,55 @@
         }
     }
 
-    // ===== 字幕菜单 =====
+    // ===== 字幕来源选择（未激活时，云端字幕存在） =====
+    function showSubtitleSourcePicker(e) {
+        removeMenu();
+        menuEl = document.createElement('div');
+        menuEl.className = 'subtitle-menu';
+        menuEl.innerHTML = `
+            <button class="subtitle-menu-item" id="sub-cloud">加载云端字幕</button>
+            <button class="subtitle-menu-item" id="sub-local">本地字幕</button>
+        `;
+
+        const rect        = subtitleBtn.getBoundingClientRect();
+        const wrapper     = document.getElementById('player-wrapper');
+        const wrapperRect = wrapper ? wrapper.getBoundingClientRect() : { left: 0, top: 0, bottom: 0, right: 0 };
+        menuEl.style.cssText = `
+            position: absolute;
+            bottom: ${wrapperRect.bottom - rect.top + 8}px;
+            right: ${wrapperRect.right - rect.right}px;
+            z-index: 300;
+        `;
+        (wrapper || document.body).appendChild(menuEl);
+
+        document.getElementById('sub-cloud').addEventListener('click', () => {
+            removeMenu();
+            _loadCloudSubtitle();  // sync, no await needed
+        });
+        document.getElementById('sub-local').addEventListener('click', () => {
+            removeMenu();
+            _userPickSubtitle();
+        });
+
+        setTimeout(() => {
+            document.addEventListener('click', closeMenuHandler, { once: true });
+        }, 50);
+    }
+
+    // ===== 字幕菜单（已激活时） =====
     let menuEl = null;
 
     function showSubtitleMenu(e) {
         removeMenu();
         menuEl = document.createElement('div');
         menuEl.className = 'subtitle-menu';
+
+        const cloudItemHtml = (cloudSubtitleUrl && !isCloudSubtitle)
+            ? `<button class="subtitle-menu-item" id="sub-cloud">加载云端字幕</button>`
+            : '';
         menuEl.innerHTML = `
             <button class="subtitle-menu-item" id="sub-change">更换字幕</button>
+            ${cloudItemHtml}
             <button class="subtitle-menu-item" id="sub-remove">关闭字幕</button>
         `;
 
@@ -187,6 +275,13 @@
             removeMenu();
             _userPickSubtitle();
         });
+        const cloudBtn = document.getElementById('sub-cloud');
+        if (cloudBtn) {
+            cloudBtn.addEventListener('click', () => {
+                removeMenu();
+                _loadCloudSubtitle();
+            });
+        }
         document.getElementById('sub-remove').addEventListener('click', () => {
             removeMenu();
             removeSubtitle();
@@ -227,6 +322,22 @@
                 // IndexedDB 不可用或句柄失效,静默忽略
             }
         })();
+    }
+
+    // ===== 云端字幕: 页面加载时查询并自动加载 =====
+    // 延迟 600ms 让本地 IndexedDB 字幕恢复有机会先完成；若本地已激活则跳过
+    if (videoId) {
+        fetch(`/cinema/api/subtitle/${encodeURIComponent(videoId)}`, { credentials: 'same-origin' })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data || !data.url) return;
+                cloudSubtitleUrl      = data.url;
+                cloudSubtitleFilename = data.filename || data.url.split('/').pop();
+                setTimeout(() => {
+                    if (!subtitleActive) _loadCloudSubtitle();
+                }, 600);
+            })
+            .catch(() => {});
     }
 
     // ===== 提示按钮: 权限需要用户手势时显示 =====
@@ -395,6 +506,7 @@
         }
         player.querySelectorAll('track').forEach(t => t.remove());
 
+        isCloudSubtitle = false;
         subtitleActive = false;
         if (subtitleBtn) subtitleBtn.classList.remove('active');
 

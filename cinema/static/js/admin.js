@@ -107,13 +107,14 @@
             videosList.innerHTML = videos.map(v => `
                 <div class="video-row">
                     <div class="info">
-                        <div class="name">${escapeHtml(v.display_name)}</div>
+                        <div class="name">${escapeHtml(v.display_name)}${v.subtitle_url ? '<span class="subtitle-badge">字幕</span>' : ''}</div>
                         <div class="meta">${formatDuration(v.duration_seconds)} · ${formatBytes(v.size_bytes)} · 添加于 ${escapeHtml(v.added_at || '')}</div>
                     </div>
                     <button class="delete-btn" data-id="${escapeHtml(v.id)}" data-name="${escapeHtml(v.display_name)}">删除</button>
                 </div>
             `).join('');
             if (window.CinemaCovers && window.CinemaCovers.attachCoverButtons) window.CinemaCovers.attachCoverButtons();
+            if (window.CinemaSubtitles && window.CinemaSubtitles.attachSubtitleButtons) window.CinemaSubtitles.attachSubtitleButtons();
             videosList.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     if (!confirm(`确定要删除视频《${btn.dataset.name}》吗?\n此操作不可恢复。`)) return;
