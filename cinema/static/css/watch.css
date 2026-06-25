@@ -262,6 +262,10 @@
     text-align: center;
 }
 
+.mode-bar[data-subtitle-active="1"]::after {
+    content: " · 字幕";
+}
+
 .mode-bar.mode-solo {
     background: var(--bg-secondary);
     color: var(--text-secondary);

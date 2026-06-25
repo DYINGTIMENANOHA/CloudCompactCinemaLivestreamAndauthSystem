@@ -28,6 +28,13 @@
     let cloudSubtitleFilename = null;  // 原始文件名（用于判断扩展名）
     let isCloudSubtitle       = false; // 当前显示的是否是云端字幕
 
+    function setModeBarSubtitleMark(active) {
+        const modeBar = document.getElementById('mode-bar');
+        if (!modeBar) return;
+        if (active) modeBar.dataset.subtitleActive = '1';
+        else delete modeBar.dataset.subtitleActive;
+    }
+
     // ===== IndexedDB helpers (存储 FileSystemFileHandle) =====
     const DB_NAME    = 'cinema_subtitle';
     const STORE_NAME = 'handles';
@@ -177,11 +184,7 @@
 
         showSubtitleToast('已加载云端字幕');
 
-        const modeBar = document.getElementById('mode-bar');
-        if (modeBar && !modeBar.dataset.subtitleMark) {
-            modeBar.dataset.subtitleMark = '1';
-            modeBar.textContent += ' · 字幕';
-        }
+        setModeBarSubtitleMark(true);
     }
 
     // ===== CC 按钮点击 =====
@@ -509,6 +512,7 @@
         isCloudSubtitle = false;
         subtitleActive = false;
         if (subtitleBtn) subtitleBtn.classList.remove('active');
+        setModeBarSubtitleMark(false);
 
         if (clearPersisted) {
             if (IDB_KEY)     _idbDelete(IDB_KEY).catch(() => {});
