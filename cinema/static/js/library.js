@@ -50,6 +50,44 @@
         return div.innerHTML;
     }
 
+    let videoNameTooltip = null;
+
+    function hideVideoNameTooltip() {
+        if (!videoNameTooltip) return;
+        videoNameTooltip.remove();
+        videoNameTooltip = null;
+    }
+
+    function positionVideoNameTooltip(e) {
+        if (!videoNameTooltip) return;
+        const gap = 14;
+        const rect = videoNameTooltip.getBoundingClientRect();
+        const left = Math.min(e.clientX + gap, window.innerWidth - rect.width - 8);
+        const top = Math.min(e.clientY + gap, window.innerHeight - rect.height - 8);
+        videoNameTooltip.style.left = `${Math.max(8, left)}px`;
+        videoNameTooltip.style.top = `${Math.max(8, top)}px`;
+    }
+
+    function attachVideoNameTooltip(card, name) {
+        card.setAttribute('aria-label', name);
+        card.addEventListener('pointerenter', (e) => {
+            hideVideoNameTooltip();
+            videoNameTooltip = document.createElement('div');
+            videoNameTooltip.className = 'video-name-tooltip';
+            videoNameTooltip.textContent = name;
+            document.body.appendChild(videoNameTooltip);
+            positionVideoNameTooltip(e);
+        });
+        card.addEventListener('pointermove', positionVideoNameTooltip);
+        card.addEventListener('pointerleave', hideVideoNameTooltip);
+    }
+
+    window.addEventListener('blur', hideVideoNameTooltip);
+    window.addEventListener('scroll', hideVideoNameTooltip, true);
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) hideVideoNameTooltip();
+    });
+
     function renderVideos(videos) {
         if (!videos || videos.length === 0) {
             grid.innerHTML = '<div class="empty">视频库还是空的,等待管理员上传</div>';
@@ -79,7 +117,10 @@
         }).join('');
 
         grid.querySelectorAll('.video-card').forEach(card => {
+            const title = card.querySelector('.title');
+            if (title) attachVideoNameTooltip(card, title.textContent);
             card.addEventListener('click', () => {
+                hideVideoNameTooltip();
                 const id = card.dataset.id;
                 window.location.href = '/cinema/watch?v=' + encodeURIComponent(id);
             });
@@ -87,6 +128,7 @@
     }
 
     async function loadVideos() {
+        hideVideoNameTooltip();
         grid.innerHTML = '<div class="loading">加载中...</div>';
         try {
             const res = await fetch('/cinema/api/videos', {

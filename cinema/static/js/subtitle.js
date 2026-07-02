@@ -10,8 +10,11 @@
     const subtitleBtn = document.getElementById('subtitle-btn');
     const fileInput   = document.getElementById('subtitle-file-input');
     const player      = document.getElementById('player');
+    const wrapper     = document.getElementById('player-wrapper');
+    const subtitleLayer = document.getElementById('subtitle-layer');
+    const controls    = document.getElementById('player-controls');
 
-    if (!subtitleBtn || !fileInput || !player) return;
+    if (!subtitleBtn || !fileInput || !player || !wrapper || !subtitleLayer) return;
 
     const VIDEO       = window.CINEMA_VIDEO;
     const videoId     = VIDEO ? VIDEO.id : null;
@@ -22,6 +25,65 @@
     let currentTrack   = null;
     let currentBlobUrl = null;
     let subtitleActive = false;
+
+    function clearSubtitleLayer() {
+        subtitleLayer.replaceChildren();
+        subtitleLayer.setAttribute('aria-hidden', 'true');
+    }
+
+    function renderActiveCues(trackEl) {
+        if (trackEl !== currentTrack || !trackEl.track) return;
+
+        const cues = Array.from(trackEl.track.activeCues || []);
+        const fragment = document.createDocumentFragment();
+        for (const cue of cues) {
+            const cueEl = document.createElement('div');
+            cueEl.className = 'subtitle-cue';
+            if (typeof cue.getCueAsHTML === 'function') {
+                cueEl.appendChild(cue.getCueAsHTML());
+            } else {
+                cueEl.textContent = cue.text || '';
+            }
+            fragment.appendChild(cueEl);
+        }
+        subtitleLayer.replaceChildren(fragment);
+        subtitleLayer.setAttribute('aria-hidden', cues.length ? 'false' : 'true');
+    }
+
+    function useCustomSubtitleRenderer(trackEl) {
+        if (!trackEl || !trackEl.track) return;
+        trackEl.track.mode = 'hidden';
+        trackEl.track.oncuechange = () => renderActiveCues(trackEl);
+        renderActiveCues(trackEl);
+    }
+
+    function updateSubtitlePosition() {
+        if (!controls) return;
+        const controlsVisible = controls.classList.contains('visible');
+        if (controlsVisible) {
+            const safeGap = Math.max(10, Math.round(wrapper.clientHeight * 0.018));
+            subtitleLayer.style.bottom = `${controls.offsetHeight + safeGap}px`;
+        } else {
+            subtitleLayer.style.removeProperty('bottom');
+        }
+    }
+
+    if (controls) {
+        const controlsObserver = new MutationObserver(updateSubtitlePosition);
+        controlsObserver.observe(controls, {
+            attributes: true,
+            attributeFilter: ['class', 'style'],
+        });
+        if (typeof ResizeObserver === 'function') {
+            const sizeObserver = new ResizeObserver(updateSubtitlePosition);
+            sizeObserver.observe(controls);
+            sizeObserver.observe(wrapper);
+        } else {
+            window.addEventListener('resize', updateSubtitlePosition);
+        }
+        document.addEventListener('fullscreenchange', updateSubtitlePosition);
+        requestAnimationFrame(updateSubtitlePosition);
+    }
 
     // 云端字幕状态
     let cloudSubtitleUrl      = null;  // 服务器返回的 URL，null 表示无云端字幕
@@ -163,8 +225,10 @@
         currentTrack.src      = cloudSubtitleUrl;
         currentTrack.default  = true;
         player.appendChild(currentTrack);
+        const trackEl = currentTrack;
 
-        currentTrack.addEventListener('error', () => {
+        trackEl.addEventListener('error', () => {
+            if (trackEl !== currentTrack) return;
             showSubtitleToast('云端字幕加载失败');
             removeSubtitle(false);
         });
@@ -173,14 +237,11 @@
         subtitleActive  = true;
         subtitleBtn.classList.add('active');
 
-        const forceShowing = () => {
-            for (let i = 0; i < player.textTracks.length; i++) {
-                player.textTracks[i].mode = 'showing';
-            }
-            if (currentTrack && currentTrack.track) currentTrack.track.mode = 'showing';
+        const activateTrack = () => {
+            if (trackEl === currentTrack) useCustomSubtitleRenderer(trackEl);
         };
-        currentTrack.addEventListener('load', forceShowing);
-        [200, 800].forEach(ms => setTimeout(forceShowing, ms));
+        trackEl.addEventListener('load', activateTrack);
+        [200, 800].forEach(ms => setTimeout(activateTrack, ms));
 
         showSubtitleToast('已加载云端字幕');
 
@@ -482,15 +543,14 @@
         currentTrack.src      = currentBlobUrl;
         currentTrack.default  = true;
         player.appendChild(currentTrack);
+        const trackEl = currentTrack;
 
-        currentTrack.addEventListener('load', () => {
-            if (currentTrack.track) currentTrack.track.mode = 'showing';
+        trackEl.addEventListener('load', () => {
+            if (trackEl === currentTrack) useCustomSubtitleRenderer(trackEl);
         });
 
         setTimeout(() => {
-            for (let i = 0; i < player.textTracks.length; i++) {
-                player.textTracks[i].mode = 'showing';
-            }
+            if (trackEl === currentTrack) useCustomSubtitleRenderer(trackEl);
         }, 200);
     }
 
@@ -499,6 +559,7 @@
     // clearPersisted=false: 内部切换时只清理 DOM
     function removeSubtitle(clearPersisted = true) {
         if (currentTrack) {
+            if (currentTrack.track) currentTrack.track.oncuechange = null;
             if (currentTrack.track) currentTrack.track.mode = 'disabled';
             currentTrack.remove();
             currentTrack = null;
@@ -508,6 +569,7 @@
             currentBlobUrl = null;
         }
         player.querySelectorAll('track').forEach(t => t.remove());
+        clearSubtitleLayer();
 
         isCloudSubtitle = false;
         subtitleActive = false;

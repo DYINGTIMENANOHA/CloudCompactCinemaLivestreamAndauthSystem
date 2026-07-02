@@ -73,8 +73,13 @@ body.has-bg-library {
     font-weight: 500;
     margin: 0 0 4px 0;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    line-height: 1.45;
+    min-height: 2.9em;
+    overflow-wrap: anywhere;
 }
 
 .video-card .duration {
@@ -101,4 +106,39 @@ body.has-bg-library {
     color: var(--text-muted);
     padding: 60px 20px;
     font-size: 14px;
+}
+
+@media (max-width: 560px) {
+    .library-main {
+        padding: 20px 14px;
+    }
+
+    .video-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .video-card {
+        display: grid;
+        grid-template-columns: minmax(112px, 36%) 1fr;
+        align-items: stretch;
+    }
+
+    .video-card .thumbnail {
+        aspect-ratio: auto;
+        min-height: 86px;
+    }
+
+    .video-card .info {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .video-card .title {
+        -webkit-line-clamp: 3;
+        line-clamp: 3;
+        min-height: auto;
+    }
 }

@@ -1028,9 +1028,47 @@
     const pickerOverlay = document.getElementById('video-picker-overlay');
     const pickerBody = document.getElementById('video-picker-body');
     const pickerClose = document.getElementById('video-picker-close');
+    let videoNameTooltip = null;
+
+    function hideVideoNameTooltip() {
+        if (!videoNameTooltip) return;
+        videoNameTooltip.remove();
+        videoNameTooltip = null;
+    }
+
+    function positionVideoNameTooltip(e) {
+        if (!videoNameTooltip) return;
+        const gap = 14;
+        const rect = videoNameTooltip.getBoundingClientRect();
+        const left = Math.min(e.clientX + gap, window.innerWidth - rect.width - 8);
+        const top = Math.min(e.clientY + gap, window.innerHeight - rect.height - 8);
+        videoNameTooltip.style.left = `${Math.max(8, left)}px`;
+        videoNameTooltip.style.top = `${Math.max(8, top)}px`;
+    }
+
+    function attachVideoNameTooltip(card, name) {
+        card.setAttribute('aria-label', name);
+        card.addEventListener('pointerenter', (e) => {
+            hideVideoNameTooltip();
+            videoNameTooltip = document.createElement('div');
+            videoNameTooltip.className = 'video-name-tooltip';
+            videoNameTooltip.textContent = name;
+            document.body.appendChild(videoNameTooltip);
+            positionVideoNameTooltip(e);
+        });
+        card.addEventListener('pointermove', positionVideoNameTooltip);
+        card.addEventListener('pointerleave', hideVideoNameTooltip);
+    }
+
+    window.addEventListener('blur', hideVideoNameTooltip);
+    window.addEventListener('scroll', hideVideoNameTooltip, true);
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) hideVideoNameTooltip();
+    });
 
     async function openVideoPicker() {
         if (!pickerOverlay) return;
+        hideVideoNameTooltip();
         pickerOverlay.style.display = 'flex';
         pickerBody.innerHTML = '<div class="video-picker-loading">加载中...</div>';
 
@@ -1060,7 +1098,10 @@
             }).join('');
 
             pickerBody.querySelectorAll('.picker-card').forEach(card => {
+                const title = card.querySelector('.title');
+                if (title) attachVideoNameTooltip(card, title.textContent);
                 card.addEventListener('click', () => {
+                    hideVideoNameTooltip();
                     const vid = card.dataset.id;
                     if (!vid) return;
                     closeVideoPicker();
@@ -1079,6 +1120,7 @@
     }
 
     function closeVideoPicker() {
+        hideVideoNameTooltip();
         if (pickerOverlay) pickerOverlay.style.display = 'none';
     }
 

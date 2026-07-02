@@ -629,6 +629,7 @@ body.has-bg-watch {
     max-height: 90vh;
     display: flex;
     flex-direction: column;
+    min-height: 0;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
     overflow: hidden;
 }
@@ -665,10 +666,13 @@ body.has-bg-watch {
 
 .video-picker-body {
     flex: 1;
+    min-height: 0;
     padding: 24px;
     overflow-y: auto;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-auto-rows: max-content;
+    align-content: start;
     gap: 20px;
 }
 
@@ -681,6 +685,7 @@ body.has-bg-watch {
 }
 
 .picker-card {
+    min-width: 0;
     background: var(--bg-tertiary);
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -695,6 +700,7 @@ body.has-bg-watch {
 }
 
 .picker-card .thumbnail {
+    width: 100%;
     aspect-ratio: 16 / 9;
     background-color: #000;
     background-size: cover;
@@ -710,9 +716,56 @@ body.has-bg-watch {
     padding: 10px 14px;
     font-size: 14px;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    line-height: 1.45;
+    min-height: calc(2.9em + 20px);
+    overflow-wrap: anywhere;
     color: var(--text-primary);
+}
+
+@media (max-width: 600px) {
+    .video-picker-dialog {
+        width: calc(100vw - 20px);
+        max-height: calc(100vh - 20px);
+    }
+
+    .video-picker-header {
+        padding: 12px 16px;
+    }
+
+    .video-picker-header h3 {
+        font-size: 16px;
+    }
+
+    .video-picker-body {
+        padding: 12px;
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .picker-card {
+        display: grid;
+        grid-template-columns: minmax(112px, 38%) 1fr;
+        align-items: stretch;
+    }
+
+    .picker-card .thumbnail {
+        aspect-ratio: auto;
+        min-height: 78px;
+    }
+
+    .picker-card .title {
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        -webkit-line-clamp: unset;
+        line-clamp: unset;
+        overflow: visible;
+    }
 }
 
 /* === Follow Banner(青蓝色,与橙/黄/紫区分) === */
@@ -1008,14 +1061,47 @@ body.has-bg-watch {
     background: var(--bg-tertiary);
 }
 
-/* 字幕显示样式(覆盖浏览器默认) */
-video::cue {
-    background: rgba(0, 0, 0, 0.7);
+/* 自定义字幕层：轨道负责计时，这一层负责显示和避让播放控件 */
+.subtitle-layer {
+    position: absolute;
+    left: 5%;
+    right: 5%;
+    bottom: clamp(20px, 6%, 56px);
+    z-index: 9;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    pointer-events: none;
+    text-align: center;
     color: white;
-    font-size: 1.1em;
+    font-size: clamp(15px, 2.2vw, 28px);
     line-height: 1.4;
-    padding: 4px 8px;
+    text-shadow:
+        0 1px 2px rgba(0, 0, 0, 1),
+        0 0 5px rgba(0, 0, 0, 0.95);
+    transition: bottom 0.22s ease;
+}
+
+.subtitle-layer:empty {
+    display: none;
+}
+
+.subtitle-cue {
+    max-width: min(100%, 1000px);
+    padding: 3px 9px;
     border-radius: 4px;
+    background: rgba(0, 0, 0, 0.7);
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+    .subtitle-layer {
+        left: 3%;
+        right: 3%;
+        font-size: clamp(13px, 4vw, 19px);
+    }
 }
 
 /* === 跳转同步提示条(±10s 本地跳转后出现) === */
