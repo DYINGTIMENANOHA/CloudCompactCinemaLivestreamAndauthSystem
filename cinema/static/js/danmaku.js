@@ -203,7 +203,8 @@
             removeMenu();
             userPickDanmaku();
         });
-        menuEl.querySelector('#dm-open-settings').addEventListener('click', () => {
+        menuEl.querySelector('#dm-open-settings').addEventListener('click', (e) => {
+            e.stopPropagation();
             removeMenu();
             showSettings();
         });

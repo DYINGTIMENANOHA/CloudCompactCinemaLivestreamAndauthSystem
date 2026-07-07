@@ -104,6 +104,9 @@
     background: transparent;
     cursor: pointer;
     z-index: 2;
+    /* Without this, mobile browsers treat a drag on the slider as page panning
+       and the seek handle can't be dragged. */
+    touch-action: none;
 }
 
 .progress-slider::-webkit-slider-runnable-track {
@@ -204,6 +207,7 @@
     background: var(--bg-tertiary);
     border-radius: 2px;
     cursor: pointer;
+    touch-action: none;
 }
 
 .volume-slider::-webkit-slider-thumb {
@@ -669,6 +673,9 @@ body.has-bg-watch {
     min-height: 0;
     padding: 24px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     grid-auto-rows: max-content;
@@ -727,6 +734,26 @@ body.has-bg-watch {
 }
 
 @media (max-width: 600px) {
+    /* Bigger touch targets for finger seeking/volume on phones */
+    .progress-row {
+        height: 32px;
+    }
+
+    .progress-slider::-webkit-slider-thumb {
+        width: 22px;
+        height: 22px;
+        margin-top: -8px;
+    }
+
+    .progress-slider::-moz-range-thumb {
+        width: 22px;
+        height: 22px;
+    }
+
+    .ctrl-btn {
+        min-height: 40px;
+    }
+
     .video-picker-dialog {
         width: calc(100vw - 20px);
         max-height: calc(100vh - 20px);

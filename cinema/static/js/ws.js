@@ -1048,6 +1048,8 @@
 
     function attachVideoNameTooltip(card, name) {
         card.setAttribute('aria-label', name);
+        // Hover tooltips make no sense on touch screens and get stuck after a tap.
+        if (window.matchMedia && !window.matchMedia('(hover: hover)').matches) return;
         card.addEventListener('pointerenter', (e) => {
             hideVideoNameTooltip();
             videoNameTooltip = document.createElement('div');
