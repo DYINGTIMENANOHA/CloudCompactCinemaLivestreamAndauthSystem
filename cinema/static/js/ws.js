@@ -308,6 +308,8 @@
         return roomLostBanner;
     }
 
+    let roomLostHideTimer = null;
+
     function showRoomLostBanner(message) {
         const banner = ensureRoomLostBanner();
         if (!banner) return;
@@ -316,7 +318,14 @@
             `<button id="room-lost-close-btn" style="background:white;color:#a02020;border:none;` +
             `padding:8px 22px;border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer;">知道了</button>`;
         banner.style.display = 'block';
+        if (roomLostHideTimer) clearTimeout(roomLostHideTimer);
+        // 几秒后自动消失,不挡画面;也可以点「知道了」立即关闭
+        roomLostHideTimer = setTimeout(() => {
+            roomLostHideTimer = null;
+            banner.style.display = 'none';
+        }, 6000);
         document.getElementById('room-lost-close-btn').addEventListener('click', () => {
+            if (roomLostHideTimer) { clearTimeout(roomLostHideTimer); roomLostHideTimer = null; }
             banner.style.display = 'none';
         });
     }
@@ -446,19 +455,21 @@
     let ws = null;
     let mySid = null;
     let myHostSid = null;
-    let lastKnownHostSid = null;  // 断线前的 host_sid,用于重连恢复
+    let myRoomId = null;          // 当前所在房间(房客身份时用于断线重连)
+    let lastKnownRoomId = null;   // 断线前所在的房间,重连时按它找回当前房主
     // 页面刷新时从 sessionStorage 恢复
     try {
-        const saved = sessionStorage.getItem('cinema_last_host_sid');
+        const saved = sessionStorage.getItem('cinema_last_room_id');
         if (saved) {
-            lastKnownHostSid = saved;
-            sessionStorage.removeItem('cinema_last_host_sid');
+            lastKnownRoomId = saved;
+            sessionStorage.removeItem('cinema_last_room_id');
         }
     } catch (e) {}
     let wsState = 'disconnected';
     let reconnectTimer = null;
     let heartbeatTimer = null;
     let lastRooms = [];
+    let roomLocked = false;  // 我所在房间是否被房主锁定了播放控制
 
     // ===== WebSocket =====
     function connect() {
@@ -486,8 +497,8 @@
             };
             if (switchFrom) helloMsg.switch_from = switchFrom;
             // 重连恢复: 告诉服务端我之前在哪个房间
-            if (lastKnownHostSid) {
-                helloMsg.previous_host_sid = lastKnownHostSid;
+            if (lastKnownRoomId) {
+                helloMsg.previous_room_id = lastKnownRoomId;
             }
             ws.send(JSON.stringify(helloMsg));
         };
@@ -501,13 +512,14 @@
         ws.onclose = (event) => {
             wsState = 'disconnected';
             updateStatus('disconnected', '已断开');
-            // 如果之前在房间里(host_sid 不是自己),记下来,重连时尝试恢复
-            if (myHostSid && myHostSid !== mySid) {
-                lastKnownHostSid = myHostSid;
+            // 如果之前是房客,记下房间号,重连时尝试恢复
+            if (myHostSid && myHostSid !== mySid && myRoomId) {
+                lastKnownRoomId = myRoomId;
             }
             ws = null;
             mySid = null;
             myHostSid = null;
+            myRoomId = null;
             stopHeartbeat();
             hidePendingBanner();
             if (event.code !== 4001 && event.code !== 4002 && event.code !== 4003) {
@@ -529,7 +541,7 @@
                 startHeartbeat();
                 console.log('[ws] my sid:', mySid);
                 // 如果是重连恢复场景,welcome 后服务端会发 joined_room 或 room_lost
-                // 不在这里清 lastKnownHostSid,让 joined_room/room_lost 来处理
+                // 不在这里清 lastKnownRoomId,让 joined_room/room_lost 来处理
 
                 // 检查 URL 参数: 是否需要自动加入某个房间
                 const joinParams = new URLSearchParams(window.location.search);
@@ -634,6 +646,7 @@
 
             case 'joined_room':
                 myHostSid = data.host_sid;
+                if (data.room_id) myRoomId = data.room_id;
                 handleJoinedRoom(data);
                 updateModeBar();
                 break;
@@ -661,15 +674,40 @@
                     let msg = `你已离开${hostName ? ' ' + hostName : ''}的房间`;
                     if (reason === 'host_left' || reason === 'host_offline') {
                         msg = `${hostName} 已离线,房间已解散`;
+                    } else if (reason === 'host_dissolved') {
+                        msg = `房主 ${hostName} 解散了房间,现在各自独立观看`;
+                    } else if (reason === 'host_joined_other') {
+                        msg = `房主 ${hostName} 去了别的房间,房间已解散,现在各自独立观看`;
                     }
                     showRoomLostBanner(msg);
                 }
                 myHostSid = mySid;
-                lastKnownHostSid = null;
+                myRoomId = null;
+                roomLocked = false;
+                lastKnownRoomId = null;
                 hidePendingBanner();
                 hideFollowBanner();
                 updateModeBar();
                 break;
+
+            case 'host_transferred': {
+                const wasHost = myHostSid === mySid;
+                myHostSid = data.new_host_sid;
+                if (data.room_id) myRoomId = data.room_id;
+                roomLocked = false;
+                hidePendingBanner();
+                hideOpportunityBanner();
+                hideHostDialog();
+                if (data.new_host_sid === mySid) {
+                    showToast(`${data.old_host_name || '房主'} 把房主移交给了你,你现在是房主 👑`, 4000);
+                } else if (wasHost) {
+                    showToast(`你已把房主移交给 ${data.new_host_name || '新房主'},现在是房客`, 4000);
+                } else {
+                    showToast(`${data.old_host_name || '房主'} 把房主移交给了 ${data.new_host_name || '新房主'}`, 4000);
+                }
+                updateModeBar();
+                break;
+            }
 
             case 'sync_pending':
                 showPendingBanner(
@@ -726,9 +764,10 @@
                 break;
 
             case 'room_lost':
-                // 重连后房主已不在线,显示持久横幅
-                showRoomLostBanner(data.host_name || '房主');
-                lastKnownHostSid = null;
+                // 重连后原房间已不存在(已解散或房主已离开)
+                showRoomLostBanner('之前的房间已解散,现在独立观看');
+                lastKnownRoomId = null;
+                myRoomId = null;
                 break;
 
             case 'report_position_request':
@@ -749,16 +788,14 @@
                     if (isFinite(pos) && pos > 0) {
                         window.CINEMA_PLAYER.seekTo(pos);
                     }
-                    const playerEl = document.getElementById('player');
-                    if (playerEl) {
-                        setTimeout(() => {
-                            if (data.paused) {
-                                playerEl.pause();
-                            } else {
-                                playerEl.play().catch(() => {});
-                            }
-                        }, 300);
-                    }
+                    setTimeout(() => {
+                        if (!window.CINEMA_PLAYER) return;
+                        if (data.paused) {
+                            window.CINEMA_PLAYER.suppressedPause();
+                        } else {
+                            window.CINEMA_PLAYER.suppressedPlay();
+                        }
+                    }, 300);
                     showToast(data.paused ? '已追上房主(暂停中)' : '已追上房主');
                 }
                 break;
@@ -773,6 +810,8 @@
             for (const v of room.viewers) {
                 if (v.sid === mySid) {
                     myHostSid = v.host_sid;
+                    roomLocked = !!v.room_locked;
+                    myRoomId = v.room_id || null;
                     return;
                 }
             }
@@ -785,13 +824,9 @@
 
         if (data.video_id === VIDEO.id) {
             // 检测是否是重连恢复场景
-            if (lastKnownHostSid && lastKnownHostSid === data.host_sid) {
+            if (data.rejoined) {
                 showToast(`已重新加入 ${data.host_name} 的房间`);
-                lastKnownHostSid = null;
-            } else if (lastKnownHostSid) {
-                // 重连后落到了不同的房间(理论上不该发生,但保险处理)
-                showToast(`已加入 ${data.host_name} 的房间`);
-                lastKnownHostSid = null;
+                lastKnownRoomId = null;
             } else {
                 showToast(`已加入 ${data.host_name} 的房间`);
             }
@@ -841,7 +876,48 @@
             switchBtnEl.style.display = isHost ? 'inline-block' : 'none';
         }
 
-        if (!myHostSid || myHostSid === mySid) {
+        const fsCatchup = document.getElementById('fs-catchup-btn');
+        const fsLeave = document.getElementById('fs-leave-btn');
+        const fsTransfer = document.getElementById('fs-transfer-btn');
+        const fsDissolve = document.getElementById('fs-dissolve-btn');
+        const fsLock = document.getElementById('fs-lock-btn');
+        function setFsButtons(asHost) {
+            if (fsCatchup) fsCatchup.style.display = asHost ? 'none' : '';
+            if (fsLeave) fsLeave.style.display = asHost ? 'none' : '';
+            if (fsLock) {
+                fsLock.style.display = asHost ? '' : 'none';
+                fsLock.textContent = roomLocked ? '🔓 解除锁定' : '🔒 锁定操作';
+            }
+            if (fsTransfer) fsTransfer.style.display = asHost ? '' : 'none';
+            if (fsDissolve) fsDissolve.style.display = asHost ? '' : 'none';
+        }
+
+        const amHost = !myHostSid || myHostSid === mySid;
+        const myMembers = amHost && mySid ? getMyRoomMembers() : [];
+
+        if (amHost && myMembers.length > 0) {
+            // 房主(房间里有房客)
+            const videoName = VIDEO.display_name || '';
+            modeBar.className = 'mode-bar mode-host';
+            modeBar.innerHTML = `
+                <span class="host-badge">👑 你是房主</span>
+                <span class="host-summary">${myMembers.length} 位房客${videoName ? ' · 《' + escapeHtml(videoName) + '》' : ''}</span>
+                <button class="host-lock-btn${roomLocked ? ' locked' : ''}" id="host-lock-btn" type="button"
+                    title="${roomLocked ? '点击解除锁定,房客的操作也会同步' : '锁定后只有你的操作会同步,房客的操作只在他们自己那边生效'}">${roomLocked ? '🔒 已锁定' : '🔓 锁定操作'}</button>
+                <button class="host-transfer-btn" id="host-transfer-btn" type="button">🔁 移交房主</button>
+                <button class="host-dissolve-btn" id="host-dissolve-btn" type="button">解散房间</button>
+            `;
+            document.getElementById('host-lock-btn').addEventListener('click', toggleRoomLock);
+            document.getElementById('host-transfer-btn').addEventListener('click', openTransferDialog);
+            document.getElementById('host-dissolve-btn').addEventListener('click', openDissolveDialog);
+            if (fsRoomBtn) {
+                fsRoomBtn.style.display = 'block';
+                fsRoomBtn.classList.add('as-host');
+                if (fsRoomLabel) fsRoomLabel.textContent = `👑 房主 · ${myMembers.length} 位房客${roomLocked ? ' · 🔒' : ''}`;
+            }
+            setFsButtons(true);
+        } else if (amHost) {
+            hideHostDialog();
             // 独立观看
             modeBar.className = 'mode-bar mode-solo';
             const videoName = VIDEO.display_name || '';
@@ -850,14 +926,21 @@
                 : '独立观看';
             // (房间装饰已改为 mode-bar 渐变)
             // 隐藏全屏房间按钮
-            if (fsRoomBtn) fsRoomBtn.style.display = 'none';
+            if (fsRoomBtn) {
+                fsRoomBtn.style.display = 'none';
+                fsRoomBtn.classList.remove('as-host');
+            }
         } else {
+            hideHostDialog();
+            if (fsRoomBtn) fsRoomBtn.classList.remove('as-host');
+            setFsButtons(false);
             const host = findViewerBySid(myHostSid);
             const hostName = host ? host.name : (disconnectedHostName || '未知');
             // 非全屏 mode-bar
             modeBar.className = 'mode-bar mode-sync';
             modeBar.innerHTML = `
                 同步观看 · ${escapeHtml(hostName)} 的房间
+                ${roomLocked ? '<span class="room-locked-tag" title="房主锁定了播放控制,你的操作只在自己这边生效">🔒 房主控制中</span>' : ''}
                 <button class="catch-up-btn" id="catch-up-btn" title="追上房主">🏃 追上</button>
                 <button class="leave-room-btn" id="leave-room-btn">离开房间</button>
             `;
@@ -876,9 +959,101 @@
             // 全屏房间按钮
             if (fsRoomBtn) {
                 fsRoomBtn.style.display = 'block';
-                if (fsRoomLabel) fsRoomLabel.textContent = `${hostName} 的房间`;
+                if (fsRoomLabel) fsRoomLabel.textContent = `${hostName} 的房间${roomLocked ? ' · 🔒' : ''}`;
             }
         }
+    }
+
+    // 我房间里(对我可见)的房客,不含自己
+    function getMyRoomMembers() {
+        const members = [];
+        for (const room of lastRooms) {
+            for (const v of room.viewers) {
+                if (v.host_sid === mySid && v.sid !== mySid) members.push(v);
+            }
+        }
+        return members;
+    }
+
+    // ===== 房主操作弹层(挂在 player-wrapper 内,全屏时也可见) =====
+    let hostDialog = null;
+
+    function hideHostDialog() {
+        if (hostDialog) {
+            hostDialog.remove();
+            hostDialog = null;
+        }
+    }
+
+    function showHostDialog(title, bodyHtml, bind) {
+        hideHostDialog();
+        const fsPanel = document.getElementById('fs-room-panel');
+        if (fsPanel) fsPanel.style.display = 'none';
+        const wrapper = document.getElementById('player-wrapper') || document.body;
+        hostDialog = document.createElement('div');
+        hostDialog.className = 'host-dialog-overlay';
+        hostDialog.innerHTML =
+            `<div class="host-dialog" role="dialog" aria-label="${escapeHtml(title)}">` +
+            `<div class="host-dialog-title">${escapeHtml(title)}</div>` +
+            bodyHtml +
+            `<button class="host-dialog-cancel" type="button" data-act="cancel">取消</button>` +
+            `</div>`;
+        hostDialog.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (e.target === hostDialog || (e.target.dataset && e.target.dataset.act === 'cancel')) {
+                hideHostDialog();
+            }
+        });
+        wrapper.appendChild(hostDialog);
+        if (bind) bind(hostDialog);
+    }
+
+    function openTransferDialog() {
+        const members = getMyRoomMembers();
+        if (members.length === 0) {
+            showToast('房间里没有可以移交的房客');
+            return;
+        }
+        const list = members.map(m =>
+            `<button class="host-dialog-item" type="button" data-sid="${escapeHtml(m.sid)}">` +
+            `${escapeHtml(m.name)}</button>`
+        ).join('');
+        showHostDialog('把房主移交给谁？',
+            `<div class="host-dialog-hint">移交后你会变成房客,继续留在房间里</div>` +
+            `<div class="host-dialog-list">${list}</div>`,
+            (el) => {
+                el.querySelectorAll('.host-dialog-item').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({ type: 'transfer_host', target_sid: btn.dataset.sid }));
+                        }
+                        hideHostDialog();
+                    });
+                });
+            });
+    }
+
+    function toggleRoomLock() {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'set_room_lock', locked: !roomLocked }));
+        }
+        const fsPanel = document.getElementById('fs-room-panel');
+        if (fsPanel) fsPanel.style.display = 'none';
+    }
+
+    function openDissolveDialog() {
+        const count = getMyRoomMembers().length;
+        showHostDialog('解散房间？',
+            `<div class="host-dialog-hint">${count} 位房客将停止同步,大家各自独立观看,当前播放不会中断</div>` +
+            `<button class="host-dialog-danger" type="button" data-act="dissolve">确认解散</button>`,
+            (el) => {
+                el.querySelector('[data-act="dissolve"]').addEventListener('click', () => {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: 'dissolve_room' }));
+                    }
+                    hideHostDialog();
+                });
+            });
     }
 
     function findViewerBySid(sid) {
@@ -1015,8 +1190,8 @@
     window.addEventListener('beforeunload', () => {
         // 刷新时保存房间状态,下次加载自动恢复
         try {
-            if (myHostSid && myHostSid !== mySid) {
-                sessionStorage.setItem('cinema_last_host_sid', myHostSid);
+            if (myHostSid && myHostSid !== mySid && myRoomId) {
+                sessionStorage.setItem('cinema_last_room_id', myRoomId);
             }
         } catch (e) {}
         stopHeartbeat();
@@ -1164,6 +1339,21 @@
             if (fsRoomPanel) fsRoomPanel.style.display = 'none';
         });
     }
+    const fsLeaveBtn = document.getElementById('fs-leave-btn');
+    const fsTransferBtn = document.getElementById('fs-transfer-btn');
+    const fsDissolveBtn = document.getElementById('fs-dissolve-btn');
+    if (fsLeaveBtn) {
+        fsLeaveBtn.addEventListener('click', () => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'leave_room' }));
+            }
+            if (fsRoomPanel) fsRoomPanel.style.display = 'none';
+        });
+    }
+    const fsLockBtn = document.getElementById('fs-lock-btn');
+    if (fsLockBtn) fsLockBtn.addEventListener('click', toggleRoomLock);
+    if (fsTransferBtn) fsTransferBtn.addEventListener('click', openTransferDialog);
+    if (fsDissolveBtn) fsDissolveBtn.addEventListener('click', openDissolveDialog);
     if (fsExitFsBtn) {
         fsExitFsBtn.addEventListener('click', () => {
             if (document.fullscreenElement) {
@@ -1176,6 +1366,9 @@
     window.CINEMA_WS = {
         getSid: () => mySid,
         getHostSid: () => myHostSid,
+        // 我是房客且房主锁定了控制: 本地操作不同步
+        isControlLocked: () => roomLocked && !!myHostSid && myHostSid !== mySid,
+        toast: (msg, duration) => showToast(msg, duration),
         send: (data) => {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify(data));

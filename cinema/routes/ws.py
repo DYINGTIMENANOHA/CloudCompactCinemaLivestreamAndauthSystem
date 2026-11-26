@@ -58,6 +58,9 @@ def _build_room_snapshot(viewer: state.Session):
                 "host_sid": v.host_sid,
                 "video_id": v.video_id,
                 "token_type": v.token_type,
+                "room_locked": v.host_sid in state.locked_rooms,
+                # room_id 只告诉本人(用于断线重连),不泄露给其他人
+                "room_id": v.room_id if v.sid == viewer.sid else None,
             })
 
         result.append({
@@ -93,6 +96,8 @@ def _get_veto_config():
 
 
 def _dissolve_room(host_sid: str):
+    state.locked_rooms.discard(host_sid)
+    state.close_room_of_host(host_sid)
     members_to_notify = []
     for s in list(state.sessions.values()):
         if s.host_sid == host_sid and s.sid != host_sid:
@@ -132,12 +137,13 @@ async def _start_reconnect_grace(host_session: state.Session, old_host_sid: str,
         entry = state.pending_reconnects.pop(reconnect_key, None)
         if not entry:
             return
+        state.locked_rooms.discard(old_host_sid)
+        state.close_room_of_host(old_host_sid)
 
         # 找仍在等待的成员(host_sid 还指向 old_host_sid)
         waiting = [s for s in state.sessions.values() if s.host_sid == old_host_sid]
         for m in waiting:
             m.host_sid = m.sid
-            await _send_toast(m.sid, f"房主 {host_session.name} 未能重连,房间已解散")
             await _send(m.sid, {
                 "type": "room_dissolved",
                 "reason": "host_offline",
@@ -155,6 +161,7 @@ async def _start_reconnect_grace(host_session: state.Session, old_host_sid: str,
     timer_task = asyncio.create_task(dissolve_after_timeout())
     state.pending_reconnects[reconnect_key] = {
         "old_host_sid": old_host_sid,
+        "host_name": host_session.name,
         "video_id": video_id,
         "expire_at": time.time() + RECONNECT_GRACE_SECONDS,
         "timer_task": timer_task,
@@ -222,14 +229,27 @@ async def _handle_join_room(session: state.Session, data: dict):
     req_id = "join_" + str(uuid.uuid4())[:6]
     host_position, host_paused = await _ask_position_full(actual_host, req_id)
 
+    # 等待期间(最多 3 秒)房间可能已移交/解散,重新确认对方仍是房主
+    if (state.sessions.get(actual_host_sid) is not actual_host
+            or actual_host.host_sid != actual_host_sid
+            or session.sid not in state.sessions):
+        await _send_toast(session.sid, "房间状态刚刚发生了变化,请重新加入")
+        return
+
     # 如果自己是房主且有成员,先解散
     if session.host_sid == session.sid:
         members = _dissolve_room(session.sid)
+        _clear_room_sync_state(session.sid)
         for m in members:
-            await _send_toast(m.sid, f"房主 {session.name} 离开了,房间已解散")
-            await _send(m.sid, {"type": "room_dissolved", "reason": "host_left"})
+            await _send(m.sid, {
+                "type": "room_dissolved",
+                "reason": "host_joined_other",
+                "host_name": session.name,
+            })
 
+    room = state.ensure_room(actual_host)
     session.host_sid = actual_host_sid
+    session.room_id = room.room_id
     session.video_id = actual_host.video_id
 
     video_info = None
@@ -238,6 +258,7 @@ async def _handle_join_room(session: state.Session, data: dict):
 
     await session.ws.send_json({
         "type": "joined_room",
+        "room_id": room.room_id,
         "host_sid": actual_host_sid,
         "host_name": actual_host.name,
         "video_id": actual_host.video_id or "",
@@ -257,12 +278,79 @@ async def _handle_join_room(session: state.Session, data: dict):
     print(f"[ws] {session.sid} ({session.name}) joined room of {actual_host_sid}, host_pos={host_position:.1f}")
 
 
+async def _rejoin_room(session: state.Session, room_id: str):
+    """房客断线/刷新后按 room_id 回到原房间。
+
+    房间仍在 → 加入它当前的房主(可能已经移交给别人);
+    房主在宽限期 → 进入等待;
+    房间已不存在 → 视为已解散。
+    """
+    room = state.rooms.get(room_id)
+    host = state.sessions.get(room.host_sid) if room else None
+
+    if room and host and host.sid != session.sid and host.video_id:
+        req_id = "reconnect_" + str(uuid.uuid4())[:6]
+        try:
+            host_position, host_paused = await _ask_position_full(host, req_id)
+        except Exception:
+            host_position, host_paused = 0.0, True
+
+        # 等待期间房间可能已解散或换了房主
+        if (state.rooms.get(room_id) is not room or room.host_sid != host.sid
+                or state.sessions.get(host.sid) is not host or session.sid not in state.sessions):
+            await _send(session.sid, {"type": "room_lost"})
+            return
+
+        session.host_sid = host.sid
+        session.room_id = room.room_id
+        session.video_id = host.video_id
+        video_info = db.get_video(host.video_id) if host.video_id else None
+        await _send(session.sid, {
+            "type": "joined_room",
+            "room_id": room.room_id,
+            "host_sid": host.sid,
+            "host_name": host.name,
+            "video_id": host.video_id or "",
+            "video_name": video_info.get("display_name", "") if video_info else "",
+            "filename": video_info.get("filename", "") if video_info else "",
+            "current_time": host_position,
+            "paused": host_paused,
+            "auto_play": not host_paused,
+            "rejoined": True,
+        })
+        await _send_toast(host.sid, f"{session.name} 已重新连接")
+        print(f"[ws] {session.sid} ({session.name}) rejoined room {room_id} (host {host.sid})")
+        return
+
+    grace_entry = None
+    if room:
+        grace_entry = next(
+            (e for e in state.pending_reconnects.values() if e["old_host_sid"] == room.host_sid),
+            None,
+        )
+    if grace_entry:
+        session.host_sid = room.host_sid
+        session.room_id = room.room_id
+        remaining = max(0, int(grace_entry["expire_at"] - time.time()))
+        await _send(session.sid, {
+            "type": "host_disconnected",
+            "host_name": grace_entry.get("host_name", "房主"),
+            "reconnect_seconds": remaining,
+        })
+        print(f"[ws] {session.sid} ({session.name}) rejoined room {room_id}, host in grace period ({remaining}s)")
+        return
+
+    await _send(session.sid, {"type": "room_lost"})
+    print(f"[ws] {session.sid} ({session.name}) tried to rejoin room {room_id} but it no longer exists")
+
+
 async def _handle_leave_room(session: state.Session):
     if session.host_sid == session.sid:
         return
 
     old_host_sid = session.host_sid
     session.host_sid = session.sid
+    session.room_id = None
 
     old_host = state.sessions.get(old_host_sid)
     if old_host:
@@ -274,6 +362,103 @@ async def _handle_leave_room(session: state.Session):
     await _send_toast(session.sid, "你已离开房间,当前独立观看")
     await _broadcast_room_update()
     print(f"[ws] {session.sid} ({session.name}) left room of {old_host_sid}")
+
+
+def _clear_room_sync_state(room_id: str):
+    """清理房间的待决同步操作和锁定期(房间解散或换房主时调用)。"""
+    pending = state.pending_actions.pop(room_id, None)
+    if pending:
+        try:
+            pending.timer_task.cancel()
+        except Exception:
+            pass
+    state.opportunity_locks.pop(room_id, None)
+
+
+async def _handle_dissolve_room(session: state.Session):
+    """房主主动解散房间,所有成员变为独立观看。"""
+    if session.host_sid != session.sid:
+        await _send_toast(session.sid, "只有房主能解散房间")
+        return
+
+    members = _dissolve_room(session.sid)
+    _clear_room_sync_state(session.sid)
+    if not members:
+        return
+
+    for m in members:
+        await _send(m.sid, {
+            "type": "room_dissolved",
+            "reason": "host_dissolved",
+            "host_name": session.name,
+        })
+
+    await _send_toast(session.sid, "房间已解散,大家各自独立观看")
+    await _broadcast_room_update()
+    print(f"[ws] host {session.name} ({session.sid}) dissolved room, released {len(members)} member(s)")
+
+
+async def _handle_transfer_host(session: state.Session, data: dict):
+    """房主把房主身份移交给房间内的另一名成员。"""
+    if session.host_sid != session.sid:
+        await _send_toast(session.sid, "只有房主能移交房主")
+        return
+
+    target_sid = data.get("target_sid", "").strip()
+    target = state.sessions.get(target_sid)
+    if (not target or target.sid == session.sid or target.host_sid != session.sid
+            or not state.is_visible_to(target, session)):
+        await _send_toast(session.sid, "对方已不在你的房间")
+        return
+
+    old_room_id = session.sid
+    members = state.get_room_members(old_room_id)
+    _clear_room_sync_state(old_room_id)
+    state.locked_rooms.discard(old_room_id)  # 锁定由新房主自己决定
+    room = state.ensure_room(session)
+    room.host_sid = target.sid  # room_id 不变,断线的房客重连时会找到新房主
+    for m in members:
+        m.host_sid = target.sid
+        m.room_id = room.room_id
+
+    for m in members:
+        await _send(m.sid, {
+            "type": "host_transferred",
+            "room_id": room.room_id,
+            "new_host_sid": target.sid,
+            "new_host_name": target.name,
+            "old_host_name": session.name,
+        })
+
+    await _broadcast_room_update()
+    print(f"[ws] host {session.name} ({session.sid}) transferred room to {target.name} ({target.sid}), {len(members)} member(s)")
+
+
+async def _handle_set_room_lock(session: state.Session, data: dict):
+    """房主锁定/解锁播放控制。锁定后房客的操作只在本地生效。"""
+    if session.host_sid != session.sid:
+        await _send_toast(session.sid, "只有房主能锁定操作")
+        return
+
+    locked = bool(data.get("locked"))
+    if locked == (session.sid in state.locked_rooms):
+        return
+    if locked:
+        state.locked_rooms.add(session.sid)
+        _clear_room_sync_state(session.sid)  # 丢弃锁定前尚未生效的待决操作
+    else:
+        state.locked_rooms.discard(session.sid)
+
+    for m in state.get_room_members(session.sid):
+        if m.sid == session.sid:
+            continue
+        if locked:
+            await _send_toast(m.sid, f"🔒 房主 {session.name} 锁定了播放控制,你的操作只在自己这边生效")
+        else:
+            await _send_toast(m.sid, f"🔓 房主 {session.name} 解除了锁定,大家都可以同步操作了。如果进度和房主不一致,可以点「追上」")
+    await _send_toast(session.sid, "🔒 已锁定,只有你的操作会同步" if locked else "🔓 已解除锁定")
+    await _broadcast_room_update()
+    print(f"[ws] host {session.name} ({session.sid}) set room lock = {locked}")
 
 
 async def _trigger_sync_opportunity(initiator: state.Session, room_id: str):
@@ -303,6 +488,13 @@ async def _handle_sync_action(session: state.Session, data: dict):
 
     members = state.get_room_members(room_id)
     if len(members) <= 1:
+        return
+
+    # 房主锁定: 房客的操作不同步;房主的操作立即生效(房客不能否决)
+    if room_id in state.locked_rooms:
+        if session.sid != room_id:
+            return
+        await _apply_sync(session, room_id, action, params)
         return
 
     # 检查 opportunity 锁(房主连续操作后的静默期,所有房主 action 都被忽略)
@@ -403,6 +595,9 @@ async def _handle_sync_veto(session: state.Session, data: dict):
     room_id = session.host_sid
     request_id = data.get("request_id", "")
 
+    if room_id in state.locked_rooms and session.sid != room_id:
+        return
+
     pending = state.pending_actions.get(room_id)
     if not pending or pending.request_id != request_id:
         return
@@ -491,6 +686,9 @@ async def _handle_host_switch_video(session: state.Session, data: dict):
 
     members = state.get_room_members(session.sid)
     other_members = [m for m in members if m.sid != session.sid]
+    _clear_room_sync_state(session.sid)
+    state.locked_rooms.discard(session.sid)
+    state.close_room_of_host(session.sid)
 
     # 先把所有成员设为独立
     for m in other_members:
@@ -579,6 +777,14 @@ async def websocket_endpoint(ws: WebSocket, token: str = Query("")):
             waiting_members = [s for s in state.sessions.values() if s.host_sid == old_host_sid]
             for m in waiting_members:
                 m.host_sid = sid
+            if old_host_sid in state.locked_rooms:
+                state.locked_rooms.discard(old_host_sid)
+                if waiting_members:
+                    state.locked_rooms.add(sid)
+            room = state.room_of_host(old_host_sid)
+            if room:
+                room.host_sid = sid  # 同一个房间,房主换了新的 sid
+                session.room_id = room.room_id
             for m in waiting_members:
                 await _send(m.sid, {
                     "type": "host_reconnected",
@@ -588,55 +794,10 @@ async def websocket_endpoint(ws: WebSocket, token: str = Query("")):
                 await _send_toast(m.sid, f"房主 {name} 已重连")
             print(f"[ws] host {name} ({sid}) reconnected via grace period, restored {len(waiting_members)} member(s)")
 
-        # 重连恢复(成员身份): 检查 previous_host_sid 是否还在线
-        previous_host_sid = hello.get("previous_host_sid", "").strip()
-        if previous_host_sid and previous_host_sid != sid:
-            prev_host = state.sessions.get(previous_host_sid)
-            if prev_host and prev_host.video_id and state.is_visible_to(prev_host, session):
-                req_id = "reconnect_" + str(uuid.uuid4())[:6]
-                try:
-                    host_position, host_paused = await _ask_position_full(prev_host, req_id)
-                except Exception:
-                    host_position, host_paused = 0.0, True
-
-                session.host_sid = previous_host_sid
-                session.video_id = prev_host.video_id
-
-                video_info = db.get_video(prev_host.video_id) if prev_host.video_id else None
-                await _send(sid, {
-                    "type": "joined_room",
-                    "host_sid": previous_host_sid,
-                    "host_name": prev_host.name,
-                    "video_id": prev_host.video_id or "",
-                    "video_name": video_info.get("display_name", "") if video_info else "",
-                    "filename": video_info.get("filename", "") if video_info else "",
-                    "current_time": host_position,
-                    "paused": host_paused,
-                    "auto_play": not host_paused,
-                })
-                await _send_toast(previous_host_sid, f"{name} 已重新连接")
-                print(f"[ws] {sid} ({name}) reconnected to room of {previous_host_sid}")
-            else:
-                # 检查 previous_host_sid 是否处于宽限期(成员重连时房主也在断线中)
-                grace_entry = next(
-                    (e for e in state.pending_reconnects.values() if e["old_host_sid"] == previous_host_sid),
-                    None
-                )
-                if grace_entry:
-                    session.host_sid = previous_host_sid
-                    remaining = max(0, int(grace_entry["expire_at"] - time.time()))
-                    await _send(sid, {
-                        "type": "host_disconnected",
-                        "host_name": "房主",
-                        "reconnect_seconds": remaining,
-                    })
-                    print(f"[ws] {sid} ({name}) reconnected, host in grace period ({remaining}s remaining)")
-                else:
-                    await _send(sid, {
-                        "type": "room_lost",
-                        "host_name": "之前的房主",
-                    })
-                    print(f"[ws] {sid} ({name}) tried to reconnect to {previous_host_sid} but host is gone")
+        # 重连恢复(成员身份): 按 room_id 找房间的当前房主
+        previous_room_id = hello.get("previous_room_id", "").strip()
+        if previous_room_id:
+            await _rejoin_room(session, previous_room_id)
 
         # 切换过来的房主: 清理 switch_from 参数
         switch_from = hello.get("switch_from", "").strip()
@@ -696,13 +857,18 @@ async def websocket_endpoint(ws: WebSocket, token: str = Query("")):
                     except Exception:
                         pass
                     for m in members:
-                        await _send_toast(m.sid, f"房主 {d.name} 已离线,房间已解散")
-                        await _send(m.sid, {"type": "room_dissolved", "reason": "host_left"})
+                        await _send(m.sid, {"type": "room_dissolved", "reason": "host_left", "host_name": d.name})
                 await _broadcast_room_update()
             elif msg_type == "join_room":
                 await _handle_join_room(session, data)
             elif msg_type == "leave_room":
                 await _handle_leave_room(session)
+            elif msg_type == "dissolve_room":
+                await _handle_dissolve_room(session)
+            elif msg_type == "transfer_host":
+                await _handle_transfer_host(session, data)
+            elif msg_type == "set_room_lock":
+                await _handle_set_room_lock(session, data)
             elif msg_type == "sync_action":
                 await _handle_sync_action(session, data)
             elif msg_type == "sync_veto":
@@ -738,6 +904,9 @@ async def websocket_endpoint(ws: WebSocket, token: str = Query("")):
                                 if s.host_sid == sid and s.sid != sid]
                 if room_members:
                     await _start_reconnect_grace(session, sid, room_members)
+                else:
+                    state.locked_rooms.discard(sid)
+                    state.close_room_of_host(sid)
             # 成员断线: 无需额外操作,房间继续
 
             try:

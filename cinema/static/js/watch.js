@@ -85,11 +85,30 @@
         return true;
     }
 
+    // 房主锁定了控制时,房客的操作只在本地生效
+    let lastLockedHintAt = 0;
+    function isControlLocked() {
+        const ws = window.CINEMA_WS;
+        return !!(ws && ws.isControlLocked && ws.isControlLocked());
+    }
+
+    function hintControlLocked() {
+        const now = Date.now();
+        if (now - lastLockedHintAt < 10000) return;
+        lastLockedHintAt = now;
+        const ws = window.CINEMA_WS;
+        if (ws && ws.toast) ws.toast('🔒 房主锁定了控制,你的操作只在自己这边生效,可点「追上」回到房主进度', 4000);
+    }
+
     function sendSyncAction(action, params) {
         if (suppressSyncEvents) return;
         if (!isInRoom()) return;
         const ws = window.CINEMA_WS;
         if (!ws) return;
+        if (isControlLocked()) {
+            hintControlLocked();
+            return;
+        }
         ws.send({
             type: 'sync_action',
             action: action,
@@ -109,6 +128,10 @@
 
     function showSkipSyncToast() {
         if (!isInRoom()) return;
+        if (isControlLocked()) {
+            hintControlLocked();
+            return;
+        }
         skipSyncToast.classList.add('visible');
         clearInterval(skipSyncTimer);
         skipSyncCountdown = 10;
@@ -371,6 +394,19 @@
         seekTo: function (time) {
             withSuppressed(() => {
                 player.currentTime = time;
+            });
+        },
+
+        // 加入房间/追上房主时按房主状态播放或暂停,不当作自己的操作同步出去
+        suppressedPlay: function () {
+            withSuppressed(() => {
+                player.play().catch(() => {});
+            });
+        },
+
+        suppressedPause: function () {
+            withSuppressed(() => {
+                player.pause();
             });
         },
     };
